@@ -1,0 +1,332 @@
+require 'anchor'
+global *
+
+init = ->
+  global *
+  main\init {title: 'M8B1674-00D4', theme: 'twitter_emoji', web: true, w: 480, h: 480, sx: 2, sy: 2}
+  bg, bg2, game, fg, ui = layer!, layer!, layer!, layer!
+  font = font 'assets/monogram.ttf', 16, 'mono'
+
+  grid_marker_color = colors.bg[0]\color_clone!
+  grid_marker_color.a = 0.08
+  grid_pointer_ok_color = colors.green[0]\color_clone!
+  grid_pointer_ok_color.a = 0.32
+  grid_pointer_not_ok_color = colors.red[0]\color_clone!
+  grid_pointer_not_ok_color.a = 0.32
+  grid_solid_color = colors.bg[0]\color_clone!
+  grid_solid_color.a = 0.64
+
+  player_score = 0
+  player_counter = 0
+  round_started = false
+
+  -- End game
+  main\observer_condition (-> player_counter >= 25), (->
+    reset_grid!
+    global game_over = true
+    global round_started = false
+    set_text 2, 4, 'GAME OVER'
+    set_text 2, 5, "SCORE:#{player_score}"
+    set_text 2, 6, 'left click to restart'
+  )
+
+  objects = container!
+  main\physics_world_set_collision_tags{'cell', 'generation_collider'}
+  main\physics_world_disable_collision_between('cell', {'cell', 'generation_collider'})
+  main\physics_world_enable_trigger_between('cell', {'generation_collider'})
+
+  -- Each shape has 4 tables, each table has offsets, from the pointer position, of each cell position that makes up the shape, in the 4 different rotations. 1 = right, 2 = down, 3 = left, 4 = up.
+  -- One of these tables might look like: {{0, 0}, {-1, 0}, {1, 0}, {0, -1}} <- this makes the short T shape pointing up, with the mouse pointer being the {0, 0} cell, and thus would be the 4th table for the 'short_t' shape.
+  shapes = {
+    short_t: {
+      {{0, 0}, {0, -1}, {0, 1}, {1, 0}},
+      {{0, 0}, {-1, 0}, {1, 0}, {0, 1}},
+      {{0, 0}, {0, -1}, {0, 1}, {-1, 0}},
+      {{0, 0}, {-1, 0}, {1, 0}, {0, -1}},
+    },
+    long_t: {
+      {{0, 0}, {0, -1}, {0, 1}, {1, 0}, {2, 0}},
+      {{0, 0}, {-1, 0}, {1, 0}, {0, 1}, {0, 2}},
+      {{0, 0}, {0, -1}, {0, 1}, {-1, 0}, {-2, 0}},
+      {{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, -2}},
+    },
+    short_i: {
+      {{0, 0}, {1, 0}, {2, 0}},
+      {{0, 0}, {0, 1}, {0, 2}},
+      {{0, 0}, {-1, 0}, {-2, 0}},
+      {{0, 0}, {0, -1}, {0, -2}},
+    },
+    long_i: {
+      {{0, 0}, {1, 0}, {2, 0}, {3, 0}},
+      {{0, 0}, {0, 1}, {0, 2}, {0, 3}},
+      {{0, 0}, {-1, 0}, {-2, 0}, {-3, 0}},
+      {{0, 0}, {0, -1}, {0, -2}, {0, -3}},
+    },
+    short_t: {
+      {{0, 0}, {0, -1}, {0, 1}, {1, 0}},
+      {{0, 0}, {-1, 0}, {1, 0}, {0, 1}},
+      {{0, 0}, {0, -1}, {0, 1}, {-1, 0}},
+      {{0, 0}, {-1, 0}, {1, 0}, {0, -1}},
+    },
+  }
+
+  -- Initialize main_grid with cell objects and generate arena
+  main_grid = grid 24, 24, 0
+  cell_w, cell_h = main.w/main_grid.w, main.h/main_grid.h
+  for i = 1, main_grid.w
+    for j = 1, main_grid.h
+      main_grid\grid_set i, j, cell(i, j)
+  generate_arena!
+
+get_next_pointer_shape = ->
+  shapes = {'short_t', 'long_t', 'short_i', 'long_i'}
+
+
+update = (dt) ->
+  if main\input_is_pressed'f11' then love.event.restart!
+  if round_started
+    global player_counter = player_counter + 0.75*dt
+    set_bottom_counter player_counter
+  if main\input_is_pressed'2'
+    global pointer_shape_rotation = pointer_shape_rotation + 1
+    pointer_shape_rotation = 1 if pointer_shape_rotation == 5
+
+  -- Reset pointer_cell state for all cells
+  for i = 2, main_grid.w-1
+    for j = 2, main_grid.h-1
+      cell = main_grid\grid_get i, j
+      cell.pointer_cell_ok = false
+      cell.pointer_cell_not_ok = false
+
+  -- Set pointer_cell state for cells that make up the current shape around the pointer
+  x, y = math.ceil(main.pointer.x/cell_w), math.ceil(main.pointer.y/cell_h)
+  any_cell_not_ok = false
+  current_cells = {}
+  if pointer_shape and round_started
+    shape = shapes[pointer_shape][pointer_shape_rotation]
+    if does_shape_fit x, y, shape
+      for offset in *shape
+        if cell = main_grid\grid_get x + offset[1], y + offset[2]
+          if cell.interactable_cell
+            current_cells[] = cell
+            cell.pointer_cell_ok = true
+    else
+      any_cell_not_ok = true
+      for offset in *shape
+        if cell = main_grid\grid_get x + offset[1], y + offset[2]
+          if cell.interactable_cell
+            current_cells[] = cell
+            cell.pointer_cell_not_ok = true
+
+  -- Place shape if it can be placed, select next shape and see if it fits anywhere in the arena
+  -- If it doesn't then end this arena, increase player score, decrease counter and generate new arena
+  if main\input_is_pressed'1' and not any_cell_not_ok and round_started
+    for cell in *current_cells
+      if cell.interactable_cell and cell.arena_cell
+        cell.pointer_cell_ok = false
+        cell.pointer_cell_not_ok = false
+        cell.solid_cell = true
+
+    global pointer_shape = 'short_t'
+    if not does_shape_fit_arena shapes[pointer_shape]
+      added_score = get_solid_cell_count!
+      global player_score = player_score + added_score
+      global player_counter = 0
+      set_bottom_counter player_counter
+      reset_grid!
+      generate_arena added_score
+
+  if main\input_is_pressed'1' and game_over
+    reset_grid!
+    global *
+    player_score = 0
+    player_counter = 0
+    round_started = false
+    game_over = false
+    generate_arena!
+  
+  -- Draw background and grid markers
+  bg\rectangle 0.5*main.w, 0.5*main.h, main.w, main.h, 0, 0, colors.fg[0]
+  bg2\set_blend_mode 'replace'
+  for i = 2, main_grid.w
+    for j = 2, main_grid.h
+      x, y = (i-1)*cell_w, (j-1)*cell_h
+      w, h = 5, 5
+      bg2\line x - w/2, y, x + w/2, y, grid_marker_color, 1
+      bg2\line x, y - h/2, x, y + h/2, grid_marker_color, 1
+  bg2\set_blend_mode!
+
+  -- Update all cells and objects
+  main_grid\grid_for_each ((v, i, j) -> v\update dt)
+  objects\container_update dt
+  objects\container_remove_dead!
+
+
+-- Sets text on any cell, starting from x, y position.
+set_text = (x, y, text) ->
+  for i = 1, utf8.len text
+    if cell = main_grid\grid_get x + i, y
+      cell.word_cell = utf8.sub text, i, i
+
+-- Clears grid entirely, called when generating a new arena or when the game ends.
+reset_grid = ->
+  for x = 2, main_grid.w
+    for y = 2, main_grid.h
+      if cell = main_grid\grid_get x, y
+        reset_cell cell
+
+-- Sets counter along the bottom 24 non-interactable cells at y = main_grid.h.
+-- Once the player_counter reaches 25, the game ends and the player loses the game.
+set_bottom_counter = (value) ->
+  for i = 1, main_grid.w
+    cell = main_grid\grid_get i, main_grid.h
+    cell.counter_cell = nil
+  for i = 1, math.floor(value)
+    cell = main_grid\grid_get i, main_grid.h
+    if value <= 16
+      cell.counter_cell = 'normal'
+    elseif value > 16 and value <= 20
+      cell.counter_cell = 'warning'
+    elseif value > 20 and value <= 25
+      cell.counter_cell = 'danger'
+
+-- Sets text along the top 24 non-interactable cells at y = 1.
+set_top_text = (text) ->
+  for i = 1, main_grid.w
+    cell = main_grid\grid_get i, 1
+    cell.word_cell = ''
+  for i = 1, utf8.len text
+    cell = main_grid\grid_get i, 1
+    cell.word_cell = utf8.sub text, i, i
+
+-- Creates circle and rectangle colliders that spread out and create the arena.
+-- Once they've all stopped moving the round starts proper.
+generate_arena = (added_score=0) ->
+  main\timer_every 0.4, (->
+    i = main\timer_get_every_index 'set_top_text'
+    if i % 4 == 1
+      set_top_text "GENERATING        +#{added_score}"
+    elseif i % 4 == 2
+      set_top_text "GENERATING.       +#{added_score}"
+    elseif i % 4 == 3
+      set_top_text "GENERATING..      +#{added_score}"
+    elseif i % 4 == 0
+      set_top_text "GENERATING...     +#{added_score}"
+  ), nil, true, nil, 'set_top_text'
+
+  global spawning = true
+  global pointer_shape, pointer_shape_rotation = nil, 1
+  global round_started = false
+  main\timer_every 0.1, (->
+    if main\random_bool(50)
+      objects\container_add generation_collider main.w/2 + main\random_float(-8, 8), main.h/2 + main\random_float(-8, 8), main\random_float(8, 20)
+    else
+      objects\container_add generation_collider main.w/2 + main\random_float(-8, 8), main.h/2 + main\random_float(-8, 8), main\random_float(16, 40), main\random_float(16, 40)
+  ), 40, true, (-> 
+    main\timer_after 2, (->
+      objects\container_destroy!
+      round_started = true
+      pointer_shape = 'short_t'
+      pointer_shape_rotation = 1
+      main\timer_cancel 'set_top_text'
+      set_top_text "SCORE:#{player_score}"
+    )
+  )
+
+get_solid_cell_count = ->
+  count = 0
+  for x = 2, main_grid.w-1
+    for y = 2, main_grid.h-1
+      if cell = main_grid\grid_get x, y
+        if cell.solid_cell
+          count += 1
+  count
+
+-- Does the shape fit from the given x, y position?
+-- A shape doesn't fit if any of its cells are non-interactable, outside the arena or colliding with a solid cell.
+does_shape_fit = (x, y, shape) ->
+  for offset in *shape
+    if cell = main_grid\grid_get x + offset[1], y + offset[2]
+      if cell.interactable_cell
+        if cell.solid_cell or not cell.arena_cell
+          return false
+      else
+        return false
+    else
+      return false
+  return true
+
+-- Does the shape fit anywhere inside the arena?
+-- This goes over all arena cells, and for each cell checks if any of the four rotations for the given shape fit from there.
+-- Returns true on the first successful fit, returns false if it doesn't fit anywhere.
+does_shape_fit_arena = (shape_rotations) ->
+  for x = 2, main_grid.w-1
+    for y = 2, main_grid.h-1
+      if cell = main_grid\grid_get(x, y)
+        if cell.arena_cell
+          for rotated_shape in *shape_rotations
+            if does_shape_fit x, y, rotated_shape
+              return true
+
+
+cell = (i, j) ->
+  @ = anchor 'cell'
+  @\prs_init (i-1)*cell_w + 0.5*cell_w, (j-1)*cell_h + 0.5*cell_h
+  @\collider_init 'cell', 'static', 'rectangle', cell_w, cell_h
+  @i, @j = i, j
+  @interactable_cell = @i >= 2 and @j >= 2 and @i <= main_grid.w-1 and @j <= main_grid.h-1 -- true if not one of the border cells
+  @arena_cell = false -- true when the cell is a part of the gameplay arena; to be an arena_cell the cell must also be an interactable_cell
+  @pointer_cell_ok = false -- true when the cell is a part of the current shape that's being placed by the pointer and the shape is entirely within the arena and not colliding with a solid_cell; must also be an interactable_cell
+  @pointer_cell_not_ok = false -- true when the cell is a part of the current shape that's being placed by the pointer but the shape is not entirely within the arena or is colliding with a solid_cell; must also be an interactable_cell
+  @solid_cell = false -- true when the cell is a part of an already placed shape in the arena; to be a solid_cell the cell must also be an arena_cell
+  @word_cell = false -- true if the cell is used as text; to be a word_cell interactable_cell must be false
+  @counter_cell = false -- true if the cell is used as the counter; to be a counter_cell interactable_cell must be false
+
+  @update = (@, dt) ->
+    @arena_cell = true if @trigger_active['generation_collider'] and @interactable_cell
+    if @counter_cell
+      switch @counter_cell
+        when 'normal'
+          game\rectangle @x, @y, @w, @h, 0, 0, colors.yellow[0]
+        when 'warning'
+          game\rectangle @x, @y, @w, @h, 0, 0, colors.orange[0]
+        when 'danger'
+          game\rectangle @x, @y, @w, @h, 0, 0, colors.red[0]
+    elseif @word_cell
+      game\rectangle @x, @y, @w, @h, 0, 0, colors.bg[0]
+      game\draw_text_centered @word_cell, font, @x, @y-2, 0, 1, 1, 0, 0, colors.fg[0] if type(@word_cell) == 'string'
+    elseif @solid_cell
+      game\rectangle @x, @y, @w, @h, 0, 0, grid_solid_color
+    elseif @pointer_cell_ok
+      game\rectangle @x, @y, @w, @h, 0, 0, grid_pointer_ok_color
+    elseif @pointer_cell_not_ok
+      game\rectangle @x, @y, @w, @h, 0, 0, grid_pointer_not_ok_color
+    elseif @arena_cell
+      game\rectangle @x, @y, @w, @h, 0, 0, grid_marker_color
+  @
+
+reset_cell = (@) ->
+  @collision_active['generation_collider'] = nil
+  @trigger_active['generation_collider'] = nil
+  @arena_cell = false
+  @pointer_cell_ok = false
+  @pointer_cell_not_ok = false
+  @solid_cell = false
+  @word_cell = false
+
+
+generation_collider = (x, y, w, h) ->
+  @ = anchor 'generation_collider'
+  @\prs_init x, y
+  if w and h 
+    @\collider_init 'generation_collider', 'dynamic', 'rectangle', w, h
+  else 
+    @\collider_init 'generation_collider', 'dynamic', 'circle', w
+
+  @update = (@, dt) ->
+    @\collider_update_position_and_angle!
+    if @shape_type == 'circle'
+      game\circle @x, @y, @rs, grid_marker_color, 2
+    else
+      game\polygon @\collider_get_vertices!, grid_marker_color, 2
+  @
