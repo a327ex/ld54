@@ -195,6 +195,8 @@ init = ->
     death\sound_play 0.75, main\random_float(0.95, 1.05)
     main\timer_cancel 'warning'
     game_over = true
+    just_game_over = true
+    main\timer_after 1, (-> just_game_over = false), 'just_game_over'
     level = 1
     round_started = false
     bottom_counter_hidden = false
@@ -364,7 +366,7 @@ update = (dt) ->
     ), 'new_shape'
 
   -- Start new round from game over screen
-  if main\input_is_pressed'1' and game_over
+  if main\input_is_pressed'1' and game_over and not just_game_over
     reset_grid!
     global *
     player_score = 0
