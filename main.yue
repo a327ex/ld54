@@ -7,33 +7,32 @@ init = ->
   bg, bg2, game, fg, ui = layer!, layer!, layer!, layer!
   font = font 'assets/ThaleahFat.ttf', 16, 'mono'
 
+  sfx = sound_tag{volume: 1}
+  death = sound 'assets/death.ogg', {tag: sfx}
+  deep_wobble = sound 'assets/deep_wobble.ogg', {tag: sfx}
+  failed_placement = sound 'assets/failed_placement.ogg', {tag: sfx}
+  failed_placement_2 = sound 'assets/failed_placement_2.ogg', {tag: sfx}
+  generation_over = sound 'assets/generation_over.ogg', {tag: sfx}
+  generation_shape_spawn = sound 'assets/generation_shape_spawn.ogg', {tag: sfx}
+  rotate = sound 'assets/rotate.ogg', {tag: sfx}
+  round_end = sound 'assets/round_end.ogg', {tag: sfx}
+  score_count_tile = sound 'assets/score_count_tile.ogg', {tag: sfx}
+  successful_placement = sound 'assets/successful_placement.ogg', {tag: sfx}
+  successful_placement_2 = sound 'assets/successful_placement_2.ogg', {tag: sfx}
+  warning = sound 'assets/warning.ogg', {tag: sfx}
+
   grid_marker_color = colors.bg[0]\color_clone!
   grid_marker_color.a = 0.08
+  bottom_counter_color = colors.bg[0]\color_clone!
+  bottom_counter_color.a = 0.20
   grid_pointer_ok_color = colors.green[0]\color_clone!
   grid_pointer_ok_color.a = 0.32
+  grid_pointer_ok_outline_color = colors.green[0]\color_clone!
+  grid_pointer_ok_outline_color.a = 0.64
   grid_pointer_not_ok_color = colors.red[0]\color_clone!
   grid_pointer_not_ok_color.a = 0.32
-  grid_solid_color = colors.bg[0]\color_clone!
-  grid_solid_color.a = 0.64
-
-  player_score = 0
-  player_counter = 0
-  round_started = false
-
-  -- End game
-  main\observer_condition (-> player_counter >= 25), (->
-    reset_grid!
-    global game_over = true
-    global round_started = false
-    set_text 2, 4, 'GAME OVER'
-    set_text 2, 5, "SCORE: #{player_score}"
-    set_text 2, 6, 'left click to restart'
-  )
-
-  objects = container!
-  main\physics_world_set_collision_tags{'cell', 'generation_collider'}
-  main\physics_world_disable_collision_between('cell', {'cell', 'generation_collider'})
-  main\physics_world_enable_trigger_between('cell', {'generation_collider'})
+  grid_pointer_not_ok_outline_color = colors.red[0]\color_clone!
+  grid_pointer_not_ok_outline_color.a = 0.64
 
   --{{{ shapes
   -- Each shape has 4 tables, each table has offsets, from the pointer position, of each cell position that makes up the shape, in the 4 different rotations. 1 = right, 2 = down, 3 = left, 4 = up.
@@ -168,23 +167,87 @@ init = ->
   }
   --}}}
 
+  objects = container!
+  main\physics_world_set_collision_tags{'cell', 'generation_collider'}
+  main\physics_world_disable_collision_between('cell', {'cell', 'generation_collider'})
+  main\physics_world_enable_trigger_between('cell', {'generation_collider'})
+
+  player_score = 0
+  player_counter = 0
+  round_started = false
+  bottom_counter_grayed = false
+  bottom_counter_hidden = false
+  main.bottom_counter_state = nil -- can be 'normal', 'warning' and 'danger'
+
+  -- End game
+  main\observer_condition (-> player_counter >= 25), (->
+    reset_grid!
+    global *
+    death\sound_play 0.75, main\random_float(0.95, 1.05)
+    main\timer_cancel 'warning'
+    game_over = true
+    round_started = false
+    bottom_counter_hidden = false
+    bottom_counter_grayed = true
+    main.bottom_counter_state = nil
+    set_text 8, 9, 'GAME OVER'
+    t = "SCORE: #{player_score}"
+    set_text math.ceil((24-utf8.len(t))/2), 10, "SCORE: #{player_score}"
+    set_text 2, 11, 'left click to restart'
+  )
+
+  -- Bottom counter state positive events, negative events are when the player completes a round and the value goes down
+  main\observer_condition (-> player_counter >= 16), (-> main.bottom_counter_state = 'warning')
+  main\observer_condition (-> player_counter >= 20), (-> main.bottom_counter_state = 'danger')
+
+  main\observer_value 'bottom_counter_state', 'normal', (-> main\timer_cancel 'warning')
+  main\observer_value 'bottom_counter_state', 'warning', (->
+    main\timer_every 0.8, (->
+      bottom_counter_hidden = not bottom_counter_hidden
+      warning\sound_play 0.75
+    ), nil, nil, nil, 'warning'
+  )
+
   -- Initialize main_grid with cell objects and generate arena
   main_grid = grid 24, 24, 0
   cell_w, cell_h = main.w/main_grid.w, main.h/main_grid.h
   for i = 1, main_grid.w
     for j = 1, main_grid.h
       main_grid\grid_set i, j, cell(i, j)
-  generate_arena!
+
+  -- Start game
+  starting_game = true
+  set_text 6, 4, 'M8B1674-00D4'
+  set_text 6, 11, 'fill the area'
+  set_text 5, 12, 'until the next'
+  set_text 5, 13, 'shape wont fit'
+  set_text 4, 20, 'left click: place'
+  set_text 3, 21, 'right click: rotate'
 
 
 update = (dt) ->
-  if main\input_is_pressed'f11' then love.event.restart!
-  if round_started
-    global player_counter = player_counter + 0.75*dt
-    set_bottom_counter player_counter
+  -- if main\input_is_pressed'f11' then love.event.restart!
+
+  -- Start round
+  if (main\input_is_pressed'1' or main\input_is_pressed'2') and starting_game
+    global starting_game = false
+    reset_grid!
+    generate_arena!
+
+  -- Rotate shape
   if main\input_is_pressed'2'
+    rotate\sound_play 0.75, main\random_float(0.95, 1.05)
     global pointer_shape_rotation = pointer_shape_rotation + 1
     pointer_shape_rotation = 1 if pointer_shape_rotation == 5
+
+  -- Update bottom counter
+  if round_started
+    global player_counter = player_counter + 0.75*dt
+  set_bottom_counter player_counter
+
+  if main.bottom_counter_state == 'warning' or main.bottom_counter_state == 'danger'
+    warning_speed = math.remap 25-player_counter, 9, 0, 1, 0.1
+    main\timer_set_multiplier 'warning', warning_speed
 
   -- Reset pointer_cell state for all cells
   for i = 2, main_grid.w-1
@@ -213,24 +276,79 @@ update = (dt) ->
             current_cells[] = cell
             cell.pointer_cell_not_ok = true
 
+  if main\input_is_pressed'1' and any_cell_not_ok and round_started
+    failed_placement\sound_play 0.375, main\random_float(0.95, 1.05)
+    failed_placement_2\sound_play 0.75, main\random_float(0.95, 1.05)
+    for cell in *current_cells
+      if cell.interactable_cell and cell.arena_cell
+        cell\shake_shake 4, 0.2
+
   -- Place shape if it can be placed, select next shape and see if it fits anywhere in the arena
-  -- If it doesn't then end this arena, increase player score, decrease counter and generate new arena
   if main\input_is_pressed'1' and not any_cell_not_ok and round_started
+    successful_placement\sound_play 0.375, main\random_float(0.95, 1.05)
+    successful_placement_2\sound_play 0.75
     for cell in *current_cells
       if cell.interactable_cell and cell.arena_cell
         cell.pointer_cell_ok = false
         cell.pointer_cell_not_ok = false
         cell.solid_cell = true
+        hitfx_cell cell, 0.2, 0.15
 
-    global pointer_shape, pointer_visual_shape = get_next_pointer_shape!
-    if not does_shape_fit_arena shapes[pointer_shape]
-      added_score = get_solid_cell_count!
-      global player_score = player_score + added_score
-      global player_counter = 0
-      set_bottom_counter player_counter
-      reset_grid!
-      generate_arena added_score
+    -- 0.3s delay between successful placement and new placement to avoid spam + visual confusion
+    global pointer_shape = nil
+    main\timer_after 0.3, (->
+      pointer_shape = get_next_pointer_shape!
+      -- If the new shape doesn't fit then end this arena, increase player score, decrease counter and generate new arena
+      if not does_shape_fit_arena shapes[pointer_shape]
+        pointer_shape = nil
+        added_score = get_solid_cell_score!
+        global round_started = false
+        global player_score = player_score
+        global player_counter = player_counter
+        main\timer_tween 0.64, _G, {player_counter: player_counter - added_score/10}, math.cubic_in_out, (->
+          player_counter = 0 if player_counter < 0
+          main.bottom_counter_state = 'normal' if player_counter < 16
+          main.bottom_counter_state = 'warning' if player_counter >= 16 and player_counter < 20
+          global bottom_counter_grayed = true
+        ), 'player_counter'
+        solid_cells = {}
+        for x = 2, main_grid.w
+          for y = 2, main_grid.h
+            if cell = main_grid\grid_get x, y
+              if cell.solid_cell
+                solid_cells[] = cell
+              else
+                reset_cell cell
+        table.shuffle solid_cells
+        main\timer_after 0.5, (->
+          round_end\sound_play 0.75, main\random_float(0.95, 1.05)
+          deep_wobble\sound_play 0.75, main\random_float(0.95, 1.05)
+          for i, solid_cell in ipairs solid_cells
+            hitfx_cell solid_cell, 0.0, nil, nil, 0.15
+            main\timer_after 0.1, (->
+              score = get_solid_neighbor_count solid_cell.i, solid_cell.j
+              solid_cell.solid_word_cell = tostring score
+            )
+        )
+        pitch = 0.75
+        main\timer_after 3, (->
+          for i, solid_cell in ipairs solid_cells
+            main\timer_after (i-1)*0.05, (->
+              score = get_solid_neighbor_count solid_cell.i, solid_cell.j
+              pitch += i*(score/200)
+              score_count_tile\sound_play 0.8, pitch
+              solid_cell.solid_word_cell = '0'
+              player_score += score
+              set_top_text "SCORE: #{player_score}"
+            )
+        )
+        main\timer_after 4 + 0.05*#solid_cells, (->
+          reset_grid!
+          generate_arena!
+        )
+    ), 'new_shape'
 
+  -- Start new round from game over screen
   if main\input_is_pressed'1' and game_over
     reset_grid!
     global *
@@ -238,6 +356,8 @@ update = (dt) ->
     player_counter = 0
     round_started = false
     game_over = false
+    main.bottom_counter_state = nil
+    bottom_counter_grayed = false
     generate_arena!
   
   -- Draw background and grid markers
@@ -251,18 +371,18 @@ update = (dt) ->
       bg2\line x, y - h/2, x, y + h/2, grid_marker_color, 1
   bg2\set_blend_mode!
 
-  -- Update all cells and objecthttps://howtomarketagame.com/2023/09/28/the-missing-middle-in-game-development/s
+  -- Update all cells and objects
   main_grid\grid_for_each ((v, i, j) -> v\update dt)
   objects\container_update dt
   objects\container_remove_dead!
 
+
 get_next_pointer_shape = ->
-  pointer_visual_shape.dead = true if pointer_visual_shape
   global pointer_shape_rotation = 1
-  shape = main\random_table{'short_t', 'long_t', 'short_i', 'long_i', 'short_j', 'long_j', 'short_l', 'long_l', 'short_s', 'long_s', 'short_z', 'long_z', 'short_v', 'long_v', 'o', 'x', 'f', 'p', 'u', 'y', 'z'}
-  shape, objects\container_add visual_shape shapes[shape][1]
+  main\random_table{'short_t', 'long_t', 'short_i', 'long_i', 'short_j', 'long_j', 'short_l', 'long_l', 'short_s', 'long_s', 'short_z', 'long_z', 'short_v', 'long_v', 'o', 'x', 'f', 'p', 'u', 'y', 'z'}
 
 -- Sets text on any cell, starting from x, y position.
+-- Reset it with reset_grid later
 set_text = (x, y, text) ->
   for i = 1, utf8.len text
     if cell = main_grid\grid_get x + i, y
@@ -282,13 +402,13 @@ set_bottom_counter = (value) ->
     cell = main_grid\grid_get i, main_grid.h
     cell.counter_cell = nil
   for i = 1, math.floor(value)
-    cell = main_grid\grid_get i, main_grid.h
-    if value <= 16
-      cell.counter_cell = 'normal'
-    elseif value > 16 and value <= 20
-      cell.counter_cell = 'warning'
-    elseif value > 20 and value <= 25
-      cell.counter_cell = 'danger'
+    if cell = main_grid\grid_get i, main_grid.h
+      if i <= 16
+        cell.counter_cell = 'normal'
+      elseif i > 16 and i <= 20
+        cell.counter_cell = 'warning'
+      elseif i > 20 and i <= 25
+        cell.counter_cell = 'danger'
 
 -- Sets text along the top 24 non-interactable cells at y = 1.
 set_top_text = (text) ->
@@ -301,38 +421,45 @@ set_top_text = (text) ->
 
 -- Creates circle and rectangle colliders that spread out and create the arena.
 -- Once they've all stopped moving the round starts proper.
-generate_arena = (added_score=0) ->
+generate_arena = () ->
   main\timer_every 0.4, (->
     i = main\timer_get_every_index 'set_top_text'
     if i % 4 == 1
-      set_top_text "GENERATING        +#{added_score}"
+      set_top_text 'GENERATING'
     elseif i % 4 == 2
-      set_top_text "GENERATING.       +#{added_score}"
+      set_top_text 'GENERATING.'
     elseif i % 4 == 3
-      set_top_text "GENERATING..      +#{added_score}"
+      set_top_text 'GENERATING..'
     elseif i % 4 == 0
-      set_top_text "GENERATING...     +#{added_score}"
+      set_top_text 'GENERATING...'
   ), nil, true, nil, 'set_top_text'
 
   global spawning = true
-  global pointer_shape, pointer_visual_shape, pointer_shape_rotation = nil, nil, 1
+  global pointer_shape, pointer_shape_rotation = nil, 1
   global round_started = false
+  spawn_count = 10
   main\timer_every 0.1, (->
     if main\random_bool(50)
       objects\container_add generation_collider main.w/2 + main\random_float(-8, 8), main.h/2 + main\random_float(-8, 8), main\random_float(8, 20)
     else
       objects\container_add generation_collider main.w/2 + main\random_float(-8, 8), main.h/2 + main\random_float(-8, 8), main\random_float(16, 40), main\random_float(16, 40)
-  ), 40, true, (-> 
-    main\timer_after 2, (->
+    generation_shape_spawn\sound_play 0.75, main\random_float(0.7, 1.3)
+    rotate\sound_play 0.75, main\random_float(0.7, 1.3)
+  ), spawn_count, true, (-> 
+    main\timer_after spawn_count/15, (->
       objects\container_destroy!
+      global bottom_counter_grayed = false
+      main.bottom_counter_state = 'normal'
       round_started = true
-      pointer_shape, pointer_visual_shape = get_next_pointer_shape!
+      pointer_shape = get_next_pointer_shape!
       pointer_shape_rotation = 1
       main\timer_cancel 'set_top_text'
-      set_top_text "SCORE:#{player_score}"
+      set_top_text "SCORE: #{player_score}"
+      generation_over\sound_play 0.75, main\random_float(0.95, 1.05)
     )
   )
 
+-- Returns total number of solid cells in the arena.
 get_solid_cell_count = ->
   count = 0
   for x = 2, main_grid.w-1
@@ -341,6 +468,28 @@ get_solid_cell_count = ->
         if cell.solid_cell
           count += 1
   count
+
+-- Returns the score from solid cells in the arena.
+get_solid_cell_score = ->
+  count = 0
+  for x = 2, main_grid.w-1
+    for y = 2, main_grid.h-1
+      if cell = main_grid\grid_get x, y
+        if cell.solid_cell
+          count += get_solid_neighbor_count x, y
+  count
+
+-- Returns the number of solid 4-neighbors for the given cell.
+get_solid_neighbor_count = (x, y) ->
+  count = 0
+  if cell = main_grid\grid_get x, y
+    left, right, up, down = main_grid\grid_get(x-1, y), main_grid\grid_get(x+1, y), main_grid\grid_get(x, y-1), main_grid\grid_get(x, y+1)
+    count += 1 if left?.solid_cell
+    count += 1 if right?.solid_cell
+    count += 1 if up?.solid_cell
+    count += 1 if down?.solid_cell
+    return count
+  0
 
 -- Does the shape fit from the given x, y position?
 -- A shape doesn't fit if any of its cells are non-interactable, outside the arena or colliding with a solid cell.
@@ -369,23 +518,12 @@ does_shape_fit_arena = (shape_rotations) ->
               return true
 
 
-visual_shape = (shape) ->
-  @ = anchor 'visual_shape'
-  @\prs_init main.pointer.x, main.pointer.y
-  @cells = {}
-  for offset in *shape
-    @cells[] = {x: offset[1]*cell_w, y: offset[2]*cell_h, w: cell_w, h: cell_h}
-  @update = (@, dt) ->
-    @x, @y = main.pointer.x, main.pointer.y
-    for cell in *@cells
-      fg\rectangle @x + cell.x, @y + cell.y, cell.w, cell.h, 3, 3, colors.bg[0]
-  @
-
-
 cell = (i, j) ->
   @ = anchor 'cell'
   @\prs_init (i-1)*cell_w + 0.5*cell_w, (j-1)*cell_h + 0.5*cell_h
   @\collider_init 'cell', 'static', 'rectangle', cell_w, cell_h
+  @\hitfx_init!
+  @\shake_init!
   @i, @j = i, j
   @interactable_cell = @i >= 2 and @j >= 2 and @i <= main_grid.w-1 and @j <= main_grid.h-1 -- true if not one of the border cells
   @arena_cell = false -- true when the cell is a part of the gameplay arena; to be an arena_cell the cell must also be an interactable_cell
@@ -397,25 +535,36 @@ cell = (i, j) ->
 
   @update = (@, dt) ->
     @arena_cell = true if @trigger_active['generation_collider'] and @interactable_cell
+    game\push @x, @y, 0, @springs.main.x, @springs.main.x
     if @counter_cell
-      switch @counter_cell
-        when 'normal'
-          game\rectangle @x, @y, @w, @h, 0, 0, colors.yellow[0]
-        when 'warning'
-          game\rectangle @x, @y, @w, @h, 0, 0, colors.orange[0]
-        when 'danger'
-          game\rectangle @x, @y, @w, @h, 0, 0, colors.red[0]
+      if not bottom_counter_hidden
+        switch @counter_cell
+          when 'normal'
+            game\rectangle @x, @y, @w, @h, 0, 0, bottom_counter_grayed and bottom_counter_color or colors.yellow[0]
+          when 'warning'
+            game\rectangle @x, @y, @w, @h, 0, 0, bottom_counter_grayed and bottom_counter_color or colors.orange[0]
+          when 'danger'
+            game\rectangle @x, @y, @w, @h, 0, 0, bottom_counter_grayed and bottom_counter_color or colors.red[0]
     elseif @word_cell
-      game\rectangle @x, @y, @w, @h, 0, 0, colors.bg[0]
+      game\rectangle @x, @y, @w, @h, 0, 0, colors.bg[2]
       game\draw_text_centered @word_cell, font, @x, @y, 0, 1, 1, 0, 0, colors.fg[0] if type(@word_cell) == 'string'
+    elseif @solid_word_cell
+      game\rectangle @x, @y, @w, @h, 0, 0, colors.bg[2]
+      game\draw_text_centered @solid_word_cell, font, @x, @y, 0, 1, 1, 0, 0, colors.fg[0] if type(@solid_word_cell) == 'string'
     elseif @solid_cell
-      game\rectangle @x, @y, @w, @h, 0, 0, grid_solid_color
+      game\rectangle @x, @y, @w, @h, 0, 0, @flashes.main.x and colors.fg[5] or colors.bg[2]
+      if @pointer_cell_not_ok and not @flashes.main.x
+        game\rectangle @x + @shake_amount.x, @y + @shake_amount.y, @w, @h, 0, 0, grid_pointer_not_ok_color
+        game\rectangle @x + @shake_amount.x, @y + @shake_amount.y, @w, @h, 4, 4, grid_pointer_not_ok_outline_color, 2
     elseif @pointer_cell_ok
       game\rectangle @x, @y, @w, @h, 0, 0, grid_pointer_ok_color
+      game\rectangle @x, @y, @w, @h, 4, 4, grid_pointer_ok_outline_color, 2
     elseif @pointer_cell_not_ok
-      game\rectangle @x, @y, @w, @h, 0, 0, grid_pointer_not_ok_color
+      game\rectangle @x + @shake_amount.x, @y + @shake_amount.y, @w, @h, 0, 0, grid_pointer_not_ok_color
+      game\rectangle @x + @shake_amount.x, @y + @shake_amount.y, @w, @h, 4, 4, grid_pointer_not_ok_outline_color, 2
     elseif @arena_cell
       game\rectangle @x, @y, @w, @h, 0, 0, grid_marker_color
+    game\pop!
   @
 
 reset_cell = (@) ->
@@ -426,6 +575,14 @@ reset_cell = (@) ->
   @pointer_cell_not_ok = false
   @solid_cell = false
   @word_cell = false
+  @solid_word_cell = false
+
+score_cell = (@) ->
+  objects\container_add hit_circle @x, @y, {colors: {colors.bg[5]}, duration: 0.4, rs: 14}
+  objects\container_add hit_particle @x, @y, {angular_v: main\random_float(-math.pi, math.pi), colors: {main\random_bool(50) and colors.bg[5] or colors.fg[5]}, duration: main\random_float(0.4, 1), v: main\random_float(100, 300)} for i = 1, main\random_int(3, 4)
+
+hitfx_cell = (@, s, f) ->
+  @\hitfx_use 'main', s or 0.25, nil, nil, f or 0.15
 
 
 generation_collider = (x, y, w, h) ->
