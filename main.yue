@@ -5,7 +5,7 @@ init = ->
   global *
   main\init {title: 'M8B1674-00D4', theme: 'twitter_emoji', web: true, w: 480, h: 480, sx: 2, sy: 2}
   bg, bg2, game, fg, ui = layer!, layer!, layer!, layer!
-  font = font 'assets/monogram.ttf', 16, 'mono'
+  font = font 'assets/ThaleahFat.ttf', 16, 'mono'
 
   grid_marker_color = colors.bg[0]\color_clone!
   grid_marker_color.a = 0.08
@@ -26,7 +26,7 @@ init = ->
     global game_over = true
     global round_started = false
     set_text 2, 4, 'GAME OVER'
-    set_text 2, 5, "SCORE:#{player_score}"
+    set_text 2, 5, "SCORE: #{player_score}"
     set_text 2, 6, 'left click to restart'
   )
 
@@ -35,6 +35,7 @@ init = ->
   main\physics_world_disable_collision_between('cell', {'cell', 'generation_collider'})
   main\physics_world_enable_trigger_between('cell', {'generation_collider'})
 
+  --{{{ shapes
   -- Each shape has 4 tables, each table has offsets, from the pointer position, of each cell position that makes up the shape, in the 4 different rotations. 1 = right, 2 = down, 3 = left, 4 = up.
   -- One of these tables might look like: {{0, 0}, {-1, 0}, {1, 0}, {0, -1}} <- this makes the short T shape pointing up, with the mouse pointer being the {0, 0} cell, and thus would be the 4th table for the 'short_t' shape.
   shapes = {
@@ -51,24 +52,121 @@ init = ->
       {{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, -2}},
     },
     short_i: {
-      {{0, 0}, {1, 0}, {2, 0}},
-      {{0, 0}, {0, 1}, {0, 2}},
-      {{0, 0}, {-1, 0}, {-2, 0}},
-      {{0, 0}, {0, -1}, {0, -2}},
+      {{0, 0}, {-1, 0}, {1, 0}},
+      {{0, 0}, {0, -1}, {0, 1}},
+      {{0, 0}, {-1, 0}, {1, 0}},
+      {{0, 0}, {0, -1}, {0, 1}},
     },
     long_i: {
-      {{0, 0}, {1, 0}, {2, 0}, {3, 0}},
-      {{0, 0}, {0, 1}, {0, 2}, {0, 3}},
-      {{0, 0}, {-1, 0}, {-2, 0}, {-3, 0}},
-      {{0, 0}, {0, -1}, {0, -2}, {0, -3}},
+      {{0, 0}, {-1, 0}, {1, 0}, {2, 0}},
+      {{0, 0}, {0, -1}, {0, 1}, {0, 2}},
+      {{0, 0}, {1, 0}, {-1, 0}, {-2, 0}},
+      {{0, 0}, {0, 1}, {0, -1}, {0, -2}},
     },
-    short_t: {
-      {{0, 0}, {0, -1}, {0, 1}, {1, 0}},
-      {{0, 0}, {-1, 0}, {1, 0}, {0, 1}},
-      {{0, 0}, {0, -1}, {0, 1}, {-1, 0}},
-      {{0, 0}, {-1, 0}, {1, 0}, {0, -1}},
+    short_j: {
+      {{0, 0}, {-1, 0}, {-1, -1}, {1, 0}},
+      {{0, 0}, {0, 1}, {0, -1}, {1, -1}},
+      {{0, 0}, {-1, 0}, {1, 0}, {1, 1}},
+      {{0, 0}, {0, -1}, {0, 1}, {-1, 1}},
+    },
+    long_j: {
+      {{0, 0}, {-1, 0}, {-1, -1}, {1, 0}, {2, 0}},
+      {{0, 0}, {0, 1}, {0, 2}, {0, -1}, {1, -1}},
+      {{0, 0}, {-1, 0}, {-2, 0}, {1, 0}, {1, 1}},
+      {{0, 0}, {0, -1}, {0, -2}, {0, 1}, {-1, 1}},
+    },
+    short_l: {
+      {{0, 0}, {-1, 0}, {1, 0}, {1, -1}},
+      {{0, 0}, {0, -1}, {0, 1}, {1, 1}},
+      {{0, 0}, {1, 0}, {-1, 0}, {-1, 1}},
+      {{0, 0}, {0, 1}, {0, -1}, {-1, -1}},
+    },
+    long_l: {
+      {{0, 0}, {-1, 0}, {-2, 0}, {1, 0}, {1, -1}},
+      {{0, 0}, {0, -1}, {0, -2}, {0, 1}, {1, 1}},
+      {{0, 0}, {1, 0}, {2, 0}, {-1, 0}, {-1, 1}},
+      {{0, 0}, {0, 1}, {0, 2}, {0, -1}, {-1, -1}},
+    },
+    short_s: {
+      {{0, 0}, {-1, 0}, {0, -1}, {1, -1}},
+      {{0, 0}, {0, -1}, {1, 0}, {1, 1}},
+      {{0, 0}, {1, 0}, {0, 1}, {-1, 1}},
+      {{0, 0}, {0, 1}, {-1, 0}, {-1, -1}},
+    },
+    long_s: {
+      {{0, 0}, {-1, 0}, {-2, 0}, {0, -1}, {1, -1}},
+      {{0, 0}, {0, -1}, {0, -2}, {1, 0}, {1, 1}},
+      {{0, 0}, {1, 0}, {2, 0}, {0, 1}, {-1, 1}},
+      {{0, 0}, {0, 1}, {0, 2}, {-1, 0}, {-1, -1}},
+    },
+    short_z: {
+      {{0, 0}, {1, 0}, {0, -1}, {-1, -1}},
+      {{0, 0}, {0, 1}, {1, 0}, {1, -1}},
+      {{0, 0}, {-1, 0}, {0, 1}, {1, 1}},
+      {{0, 0}, {0, -1}, {-1, 0}, {-1, 1}},
+    },
+    long_z: {
+      {{0, 0}, {1, 0}, {2, 0}, {0, -1}, {-1, -1}},
+      {{0, 0}, {0, 1}, {0, 2}, {1, 0}, {1, -1}},
+      {{0, 0}, {-1, 0}, {-2, 0}, {0, 1}, {1, 1}},
+      {{0, 0}, {0, -1}, {0, -2}, {-1, 0}, {-1, 1}},
+    },
+    short_v: {
+      {{0, 0}, {1, 0}, {0, -1}},
+      {{0, 0}, {1, 0}, {0, 1}},
+      {{0, 0}, {-1, 0}, {0, 1}},
+      {{0, 0}, {0, -1}, {-1, 0}},
+    },
+    long_v: {
+      {{0, 0}, {1, 0}, {2, 0}, {0, -1}, {0, -2}},
+      {{0, 0}, {1, 0}, {2, 0}, {0, 1}, {0, 2}},
+      {{0, 0}, {-1, 0}, {-2, 0}, {0, 1}, {0, 2}},
+      {{0, 0}, {0, -1}, {0, -2}, {-1, 0}, {-2, 0}},
+    },
+    o: {
+      {{0, 0}, {1, 0}, {1, 1}, {0, 1}},
+      {{0, 0}, {1, 0}, {1, 1}, {0, 1}},
+      {{0, 0}, {1, 0}, {1, 1}, {0, 1}},
+      {{0, 0}, {1, 0}, {1, 1}, {0, 1}},
+    },
+    x: {
+      {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}},
+      {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}},
+      {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}},
+      {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}},
+    },
+    f: {
+      {{0, 0}, {0, 1}, {0, -1}, {1, -1}, {-1, 0}},
+      {{0, 0}, {-1, 0}, {1, 0}, {1, 1}, {0, -1}},
+      {{0, 0}, {0, -1}, {0, 1}, {-1, 1}, {1, 0}},
+      {{0, 0}, {-1, 0}, {-1, -1}, {1, 0}, {0, 1}},
+    },
+    p: {
+      {{0, 0}, {0, -1}, {0, 1}, {1, -1}, {1, 0}},
+      {{0, 0}, {-1, 0}, {1, 0}, {0, 1}, {1, 1}},
+      {{0, 0}, {0, -1}, {0, 1}, {-1, 0}, {-1, 1}},
+      {{0, 0}, {1, 0}, {-1, 0}, {-1, -1}, {0, -1}},
+    },
+    u: {
+      {{0, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}},
+      {{0, 0}, {-1, 0}, {1, 0}, {1, 1}, {-1, 1}},
+      {{0, 0}, {0, -1}, {0, 1}, {-1, 1}, {-1, -1}},
+      {{0, 0}, {-1, 0}, {-1, -1}, {1, 0}, {1, -1}},
+    },
+    y: {
+      {{0, 0}, {-1, 0}, {1, 0}, {2, 0}, {0, -1}},
+      {{0, 0}, {0, -1}, {0, 1}, {0, 2}, {1, 0}},
+      {{0, 0}, {1, 0}, {-1, 0}, {-2, 0}, {0, 1}},
+      {{0, 0}, {0, 1}, {0, -1}, {0, -2}, {-1, 0}},
+    },
+    z: {
+      {{0, 0}, {0, -1}, {0, 1}, {1, 1}, {-1, -1}},
+      {{0, 0}, {1, 0}, {-1, 0}, {-1, 1}, {1, -1}},
+      {{0, 0}, {0, 1}, {0, -1}, {-1, -1}, {1, 1}},
+      {{0, 0}, {-1, 0}, {1, 0}, {1, -1}, {-1, 1}},
     },
   }
+  --}}}
 
   -- Initialize main_grid with cell objects and generate arena
   main_grid = grid 24, 24, 0
@@ -77,9 +175,6 @@ init = ->
     for j = 1, main_grid.h
       main_grid\grid_set i, j, cell(i, j)
   generate_arena!
-
-get_next_pointer_shape = ->
-  shapes = {'short_t', 'long_t', 'short_i', 'long_i'}
 
 
 update = (dt) ->
@@ -127,7 +222,7 @@ update = (dt) ->
         cell.pointer_cell_not_ok = false
         cell.solid_cell = true
 
-    global pointer_shape = 'short_t'
+    global pointer_shape, pointer_visual_shape = get_next_pointer_shape!
     if not does_shape_fit_arena shapes[pointer_shape]
       added_score = get_solid_cell_count!
       global player_score = player_score + added_score
@@ -156,11 +251,16 @@ update = (dt) ->
       bg2\line x, y - h/2, x, y + h/2, grid_marker_color, 1
   bg2\set_blend_mode!
 
-  -- Update all cells and objects
+  -- Update all cells and objecthttps://howtomarketagame.com/2023/09/28/the-missing-middle-in-game-development/s
   main_grid\grid_for_each ((v, i, j) -> v\update dt)
   objects\container_update dt
   objects\container_remove_dead!
 
+get_next_pointer_shape = ->
+  pointer_visual_shape.dead = true if pointer_visual_shape
+  global pointer_shape_rotation = 1
+  shape = main\random_table{'short_t', 'long_t', 'short_i', 'long_i', 'short_j', 'long_j', 'short_l', 'long_l', 'short_s', 'long_s', 'short_z', 'long_z', 'short_v', 'long_v', 'o', 'x', 'f', 'p', 'u', 'y', 'z'}
+  shape, objects\container_add visual_shape shapes[shape][1]
 
 -- Sets text on any cell, starting from x, y position.
 set_text = (x, y, text) ->
@@ -215,7 +315,7 @@ generate_arena = (added_score=0) ->
   ), nil, true, nil, 'set_top_text'
 
   global spawning = true
-  global pointer_shape, pointer_shape_rotation = nil, 1
+  global pointer_shape, pointer_visual_shape, pointer_shape_rotation = nil, nil, 1
   global round_started = false
   main\timer_every 0.1, (->
     if main\random_bool(50)
@@ -226,7 +326,7 @@ generate_arena = (added_score=0) ->
     main\timer_after 2, (->
       objects\container_destroy!
       round_started = true
-      pointer_shape = 'short_t'
+      pointer_shape, pointer_visual_shape = get_next_pointer_shape!
       pointer_shape_rotation = 1
       main\timer_cancel 'set_top_text'
       set_top_text "SCORE:#{player_score}"
@@ -269,6 +369,19 @@ does_shape_fit_arena = (shape_rotations) ->
               return true
 
 
+visual_shape = (shape) ->
+  @ = anchor 'visual_shape'
+  @\prs_init main.pointer.x, main.pointer.y
+  @cells = {}
+  for offset in *shape
+    @cells[] = {x: offset[1]*cell_w, y: offset[2]*cell_h, w: cell_w, h: cell_h}
+  @update = (@, dt) ->
+    @x, @y = main.pointer.x, main.pointer.y
+    for cell in *@cells
+      fg\rectangle @x + cell.x, @y + cell.y, cell.w, cell.h, 3, 3, colors.bg[0]
+  @
+
+
 cell = (i, j) ->
   @ = anchor 'cell'
   @\prs_init (i-1)*cell_w + 0.5*cell_w, (j-1)*cell_h + 0.5*cell_h
@@ -294,7 +407,7 @@ cell = (i, j) ->
           game\rectangle @x, @y, @w, @h, 0, 0, colors.red[0]
     elseif @word_cell
       game\rectangle @x, @y, @w, @h, 0, 0, colors.bg[0]
-      game\draw_text_centered @word_cell, font, @x, @y-2, 0, 1, 1, 0, 0, colors.fg[0] if type(@word_cell) == 'string'
+      game\draw_text_centered @word_cell, font, @x, @y, 0, 1, 1, 0, 0, colors.fg[0] if type(@word_cell) == 'string'
     elseif @solid_cell
       game\rectangle @x, @y, @w, @h, 0, 0, grid_solid_color
     elseif @pointer_cell_ok
