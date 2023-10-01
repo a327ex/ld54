@@ -1797,578 +1797,629 @@ init = function() -- 4
 	bottom_counter_grayed = false -- 178
 	bottom_counter_hidden = false -- 179
 	main.bottom_counter_state = nil -- 180
-	main:observer_condition((function() -- 183
-		return player_counter >= 25 -- 183
-	end), (function() -- 183
-		reset_grid() -- 184
-		death:sound_play(0.75, main:random_float(0.95, 1.05)) -- 186
-		main:timer_cancel('warning') -- 187
-		game_over = true -- 188
-		round_started = false -- 189
-		bottom_counter_hidden = false -- 190
-		bottom_counter_grayed = true -- 191
-		main.bottom_counter_state = nil -- 192
-		set_text(8, 9, 'GAME OVER') -- 193
-		t = "SCORE: " .. tostring(player_score) -- 194
-		set_text(math.ceil((24 - utf8.len(t)) / 2), 10, "SCORE: " .. tostring(player_score)) -- 195
-		return set_text(2, 11, 'left click to restart') -- 196
-	end)) -- 183
-	main:observer_condition((function() -- 200
-		return player_counter >= 16 -- 200
-	end), (function() -- 200
-		main.bottom_counter_state = 'warning' -- 200
-	end)) -- 200
-	main:observer_condition((function() -- 201
-		return player_counter >= 20 -- 201
-	end), (function() -- 201
-		main.bottom_counter_state = 'danger' -- 201
-	end)) -- 201
-	main:observer_value('bottom_counter_state', 'normal', (function() -- 203
-		return main:timer_cancel('warning') -- 203
-	end)) -- 203
-	main:observer_value('bottom_counter_state', 'warning', (function() -- 204
-		return main:timer_every(0.8, (function() -- 205
-			bottom_counter_hidden = not bottom_counter_hidden -- 206
-			return warning:sound_play(0.75) -- 207
-		end), nil, nil, nil, 'warning') -- 208
-	end)) -- 204
-	main_grid = grid(24, 24, 0) -- 212
-	cell_w, cell_h = main.w / main_grid.w, main.h / main_grid.h -- 213
-	for i = 1, main_grid.w do -- 214
-		for j = 1, main_grid.h do -- 215
-			main_grid:grid_set(i, j, cell(i, j)) -- 216
-		end -- 216
-	end -- 216
-	starting_game = true -- 219
-	set_text(6, 4, 'M8B1674-00D4') -- 220
-	set_text(6, 11, 'fill the area') -- 221
-	set_text(5, 12, 'until the next') -- 222
-	set_text(5, 13, 'shape wont fit') -- 223
-	set_text(4, 20, 'left click: place') -- 224
-	return set_text(3, 21, 'right click: rotate') -- 225
+	level = 1 -- 181
+	level_to_player_counter_speed = { -- 182
+		0.5, -- 182
+		0.55, -- 182
+		0.7, -- 182
+		0.6, -- 182
+		0.66, -- 182
+		0.84, -- 182
+		0.5, -- 182
+		0.7, -- 182
+		1.00, -- 182
+		0.12, -- 182
+		0.58, -- 182
+		1.20 -- 182
+	} -- 182
+	level_to_generation_colliders_spawned = { -- 183
+		10, -- 183
+		12, -- 183
+		18, -- 183
+		14, -- 183
+		10, -- 183
+		22, -- 183
+		16, -- 183
+		18, -- 183
+		32, -- 183
+		40, -- 183
+		40, -- 183
+		40 -- 183
+	} -- 183
+	for i = 13, 100, 3 do -- 184
+		level_to_player_counter_speed[i] = level_to_player_counter_speed[i - 1] * 0.5 -- 185
+		level_to_player_counter_speed[i + 1] = level_to_player_counter_speed[i - 1] * 0.7 -- 186
+		level_to_player_counter_speed[i + 2] = level_to_player_counter_speed[i - 1] * 1.4 -- 187
+	end -- 187
+	for i = 13, 100 do -- 188
+		level_to_generation_colliders_spawned[i] = main:random_int(16, 40) -- 189
+	end -- 189
+	main:observer_condition((function() -- 192
+		return player_counter >= 25 -- 192
+	end), (function() -- 192
+		reset_grid() -- 193
+		death:sound_play(0.75, main:random_float(0.95, 1.05)) -- 195
+		main:timer_cancel('warning') -- 196
+		game_over = true -- 197
+		level = 1 -- 198
+		round_started = false -- 199
+		bottom_counter_hidden = false -- 200
+		bottom_counter_grayed = true -- 201
+		main.bottom_counter_state = nil -- 202
+		set_text(8, 9, 'GAME OVER') -- 203
+		t = "SCORE: " .. tostring(player_score) -- 204
+		set_text(math.ceil((24 - utf8.len(t)) / 2), 10, "SCORE: " .. tostring(player_score)) -- 205
+		return set_text(2, 11, 'left click to restart') -- 206
+	end)) -- 192
+	main:observer_condition((function() -- 210
+		return player_counter >= 16 -- 210
+	end), (function() -- 210
+		main.bottom_counter_state = 'warning' -- 210
+	end)) -- 210
+	main:observer_condition((function() -- 211
+		return player_counter >= 20 -- 211
+	end), (function() -- 211
+		main.bottom_counter_state = 'danger' -- 211
+	end)) -- 211
+	main:observer_value('bottom_counter_state', 'normal', (function() -- 213
+		main:timer_cancel('warning') -- 214
+		bottom_counter_hidden = false -- 215
+	end)) -- 213
+	main:observer_value('bottom_counter_state', 'warning', (function() -- 217
+		return main:timer_every(0.8, (function() -- 218
+			bottom_counter_hidden = not bottom_counter_hidden -- 219
+			return warning:sound_play(0.75) -- 220
+		end), nil, nil, nil, 'warning') -- 221
+	end)) -- 217
+	main_grid = grid(24, 24, 0) -- 225
+	cell_w, cell_h = main.w / main_grid.w, main.h / main_grid.h -- 226
+	for i = 1, main_grid.w do -- 227
+		for j = 1, main_grid.h do -- 228
+			main_grid:grid_set(i, j, cell(i, j)) -- 229
+		end -- 229
+	end -- 229
+	starting_game = true -- 232
+	set_text(6, 4, 'M8B1674-00D4') -- 233
+	set_text(6, 11, 'fill the area') -- 234
+	set_text(5, 12, 'until the next') -- 235
+	set_text(5, 13, 'shape wont fit') -- 236
+	set_text(4, 20, 'left click: place') -- 237
+	return set_text(3, 21, 'right click: rotate') -- 238
 end -- 4
-update = function(dt) -- 228
-	if (main:input_is_pressed('1') or main:input_is_pressed('2')) and starting_game then -- 232
-		starting_game = false -- 233
-		reset_grid() -- 234
-		generate_arena() -- 235
-	end -- 232
-	if main:input_is_pressed('2') then -- 238
-		rotate:sound_play(0.75, main:random_float(0.95, 1.05)) -- 239
-		pointer_shape_rotation = pointer_shape_rotation + 1 -- 240
-		if pointer_shape_rotation == 5 then -- 241
-			pointer_shape_rotation = 1 -- 241
-		end -- 241
-	end -- 238
-	if round_started then -- 244
-		player_counter = player_counter + 0.75 * dt -- 245
-	end -- 244
-	set_bottom_counter(player_counter) -- 246
-	if main.bottom_counter_state == 'warning' or main.bottom_counter_state == 'danger' then -- 248
-		local warning_speed = math.remap(25 - player_counter, 9, 0, 1, 0.1) -- 249
-		print(warning_speed) -- 250
-		main:timer_set_multiplier('warning', warning_speed) -- 251
-	end -- 248
-	for i = 2, main_grid.w - 1 do -- 254
-		for j = 2, main_grid.h - 1 do -- 255
-			local cell = main_grid:grid_get(i, j) -- 256
-			cell.pointer_cell_ok = false -- 257
-			cell.pointer_cell_not_ok = false -- 258
-		end -- 258
-	end -- 258
-	local x, y = math.ceil(main.pointer.x / cell_w), math.ceil(main.pointer.y / cell_h) -- 261
-	local any_cell_not_ok = false -- 262
-	local current_cells = { } -- 263
-	if pointer_shape and round_started then -- 264
-		local shape = shapes[pointer_shape][pointer_shape_rotation] -- 265
-		if does_shape_fit(x, y, shape) then -- 266
-			for _index_0 = 1, #shape do -- 267
-				local offset = shape[_index_0] -- 267
-				do -- 268
-					local cell = main_grid:grid_get(x + offset[1], y + offset[2]) -- 268
-					if cell then -- 268
-						if cell.interactable_cell then -- 269
-							current_cells[#current_cells + 1] = cell -- 270
-							cell.pointer_cell_ok = true -- 271
-						end -- 269
-					end -- 268
-				end -- 268
-			end -- 271
-		else -- 273
-			any_cell_not_ok = true -- 273
-			for _index_0 = 1, #shape do -- 274
-				local offset = shape[_index_0] -- 274
-				do -- 275
-					local cell = main_grid:grid_get(x + offset[1], y + offset[2]) -- 275
-					if cell then -- 275
-						if cell.interactable_cell then -- 276
-							current_cells[#current_cells + 1] = cell -- 277
-							cell.pointer_cell_not_ok = true -- 278
-						end -- 276
-					end -- 275
-				end -- 275
-			end -- 278
-		end -- 266
-	end -- 264
-	if main:input_is_pressed('1') and any_cell_not_ok and round_started then -- 280
-		failed_placement:sound_play(0.375, main:random_float(0.95, 1.05)) -- 281
-		failed_placement_2:sound_play(0.75, main:random_float(0.95, 1.05)) -- 282
-		for _index_0 = 1, #current_cells do -- 283
-			local cell = current_cells[_index_0] -- 283
-			if cell.interactable_cell and cell.arena_cell then -- 284
-				cell:shake_shake(4, 0.2) -- 285
-			end -- 284
-		end -- 285
-	end -- 280
-	if main:input_is_pressed('1') and not any_cell_not_ok and round_started then -- 288
-		successful_placement:sound_play(0.375, main:random_float(0.95, 1.05)) -- 289
-		successful_placement_2:sound_play(0.75) -- 290
-		for _index_0 = 1, #current_cells do -- 291
-			local cell = current_cells[_index_0] -- 291
-			if cell.interactable_cell and cell.arena_cell then -- 292
-				cell.pointer_cell_ok = false -- 293
-				cell.pointer_cell_not_ok = false -- 294
-				cell.solid_cell = true -- 295
-				hitfx_cell(cell, 0.2, 0.15) -- 296
-			end -- 292
-		end -- 296
-		pointer_shape = nil -- 299
-		main:timer_after(0.3, (function() -- 300
-			pointer_shape = get_next_pointer_shape() -- 301
-			if not does_shape_fit_arena(shapes[pointer_shape]) then -- 303
-				pointer_shape = nil -- 304
-				local added_score = get_solid_cell_score() -- 305
-				print(added_score) -- 306
-				round_started = false -- 307
-				player_score = player_score -- 308
-				player_counter = player_counter -- 309
-				main:timer_tween(0.64, _G, { -- 310
-					player_counter = player_counter - added_score / 10 -- 310
-				}, math.cubic_in_out, (function() -- 310
-					if player_counter < 0 then -- 311
-						player_counter = 0 -- 311
-					end -- 311
-					if player_counter < 16 then -- 312
-						main.bottom_counter_state = 'normal' -- 312
-					end -- 312
-					if player_counter >= 16 and player_counter < 20 then -- 313
-						main.bottom_counter_state = 'warning' -- 313
-					end -- 313
-					bottom_counter_grayed = true -- 314
-				end), 'player_counter') -- 310
-				local solid_cells = { } -- 316
-				for x = 2, main_grid.w do -- 317
-					for y = 2, main_grid.h do -- 318
-						do -- 319
-							local cell = main_grid:grid_get(x, y) -- 319
-							if cell then -- 319
-								if cell.solid_cell then -- 320
-									solid_cells[#solid_cells + 1] = cell -- 321
-								else -- 323
-									reset_cell(cell) -- 323
-								end -- 320
-							end -- 319
-						end -- 319
+update = function(dt) -- 241
+	if (main:input_is_pressed('1') or main:input_is_pressed('2')) and starting_game then -- 245
+		starting_game = false -- 246
+		reset_grid() -- 247
+		generate_arena() -- 248
+	end -- 245
+	if main:input_is_pressed('2') then -- 251
+		rotate:sound_play(0.75, main:random_float(0.95, 1.05)) -- 252
+		pointer_shape_rotation = pointer_shape_rotation + 1 -- 253
+		if pointer_shape_rotation == 5 then -- 254
+			pointer_shape_rotation = 1 -- 254
+		end -- 254
+	end -- 251
+	if round_started then -- 257
+		player_counter = player_counter + level_to_player_counter_speed[level] * dt -- 258
+	end -- 257
+	set_bottom_counter(player_counter) -- 259
+	if main.bottom_counter_state == 'warning' or main.bottom_counter_state == 'danger' then -- 261
+		local warning_speed = math.remap(25 - player_counter, 9, 0, 1, 0.1) -- 262
+		main:timer_set_multiplier('warning', warning_speed) -- 263
+	end -- 261
+	for i = 2, main_grid.w - 1 do -- 266
+		for j = 2, main_grid.h - 1 do -- 267
+			local cell = main_grid:grid_get(i, j) -- 268
+			cell.pointer_cell_ok = false -- 269
+			cell.pointer_cell_not_ok = false -- 270
+		end -- 270
+	end -- 270
+	local x, y = math.ceil(main.pointer.x / cell_w), math.ceil(main.pointer.y / cell_h) -- 273
+	local any_cell_not_ok = false -- 274
+	local current_cells = { } -- 275
+	if pointer_shape and round_started then -- 276
+		local shape = shapes[pointer_shape][pointer_shape_rotation] -- 277
+		if does_shape_fit(x, y, shape) then -- 278
+			for _index_0 = 1, #shape do -- 279
+				local offset = shape[_index_0] -- 279
+				do -- 280
+					local cell = main_grid:grid_get(x + offset[1], y + offset[2]) -- 280
+					if cell then -- 280
+						if cell.interactable_cell then -- 281
+							current_cells[#current_cells + 1] = cell -- 282
+							cell.pointer_cell_ok = true -- 283
+						end -- 281
+					end -- 280
+				end -- 280
+			end -- 283
+		else -- 285
+			any_cell_not_ok = true -- 285
+			for _index_0 = 1, #shape do -- 286
+				local offset = shape[_index_0] -- 286
+				do -- 287
+					local cell = main_grid:grid_get(x + offset[1], y + offset[2]) -- 287
+					if cell then -- 287
+						if cell.interactable_cell then -- 288
+							current_cells[#current_cells + 1] = cell -- 289
+							cell.pointer_cell_not_ok = true -- 290
+						end -- 288
+					end -- 287
+				end -- 287
+			end -- 290
+		end -- 278
+	end -- 276
+	if main:input_is_pressed('1') and any_cell_not_ok and round_started then -- 292
+		failed_placement:sound_play(0.375, main:random_float(0.95, 1.05)) -- 293
+		failed_placement_2:sound_play(0.75, main:random_float(0.95, 1.05)) -- 294
+		for _index_0 = 1, #current_cells do -- 295
+			local cell = current_cells[_index_0] -- 295
+			if cell.interactable_cell and cell.arena_cell then -- 296
+				cell:shake_shake(4, 0.2) -- 297
+			end -- 296
+		end -- 297
+	end -- 292
+	if main:input_is_pressed('1') and not any_cell_not_ok and round_started then -- 300
+		successful_placement:sound_play(0.375, main:random_float(0.95, 1.05)) -- 301
+		successful_placement_2:sound_play(0.75) -- 302
+		for _index_0 = 1, #current_cells do -- 303
+			local cell = current_cells[_index_0] -- 303
+			if cell.interactable_cell and cell.arena_cell then -- 304
+				cell.pointer_cell_ok = false -- 305
+				cell.pointer_cell_not_ok = false -- 306
+				cell.solid_cell = true -- 307
+				hitfx_cell(cell, 0.2, 0.15) -- 308
+			end -- 304
+		end -- 308
+		pointer_shape = nil -- 311
+		main:timer_after(0.3, (function() -- 312
+			pointer_shape = get_next_pointer_shape() -- 313
+			if not does_shape_fit_arena(shapes[pointer_shape]) then -- 315
+				pointer_shape = nil -- 316
+				local added_score = get_solid_cell_score() -- 317
+				round_started = false -- 318
+				player_score = player_score -- 319
+				player_counter = player_counter -- 320
+				main:timer_tween(0.64, _G, { -- 321
+					player_counter = player_counter - added_score / 12 -- 321
+				}, math.cubic_in_out, (function() -- 321
+					if player_counter < 0 then -- 322
+						player_counter = 0 -- 322
+					end -- 322
+					if player_counter < 16 then -- 323
+						main.bottom_counter_state = 'normal' -- 323
 					end -- 323
-				end -- 323
-				table.shuffle(solid_cells) -- 324
-				main:timer_after(0.5, (function() -- 325
-					round_end:sound_play(0.75, main:random_float(0.95, 1.05)) -- 326
-					deep_wobble:sound_play(0.75, main:random_float(0.95, 1.05)) -- 327
-					for i, solid_cell in ipairs(solid_cells) do -- 328
-						hitfx_cell(solid_cell, 0.0, nil, nil, 0.15) -- 329
-						main:timer_after(0.1, (function() -- 330
-							local score = get_solid_neighbor_count(solid_cell.i, solid_cell.j) -- 331
-							solid_cell.solid_word_cell = tostring(score) -- 332
-						end)) -- 330
-					end -- 333
-				end)) -- 325
-				local pitch = 0.75 -- 335
-				main:timer_after(3, (function() -- 336
-					for i, solid_cell in ipairs(solid_cells) do -- 337
-						main:timer_after((i - 1) * 0.05, (function() -- 338
-							local score = get_solid_neighbor_count(solid_cell.i, solid_cell.j) -- 339
-							pitch = pitch + (i * (score / 200)) -- 340
-							score_count_tile:sound_play(0.8, pitch) -- 341
-							solid_cell.solid_word_cell = '0' -- 342
-							player_score = player_score + score -- 343
-							return set_top_text("SCORE: " .. tostring(player_score)) -- 344
-						end)) -- 338
+					if player_counter >= 16 and player_counter < 20 then -- 324
+						main.bottom_counter_state = 'warning' -- 324
+					end -- 324
+					bottom_counter_grayed = true -- 325
+				end), 'player_counter') -- 321
+				local solid_cells = { } -- 327
+				for x = 2, main_grid.w do -- 328
+					for y = 2, main_grid.h do -- 329
+						do -- 330
+							local cell = main_grid:grid_get(x, y) -- 330
+							if cell then -- 330
+								if cell.solid_cell then -- 331
+									solid_cells[#solid_cells + 1] = cell -- 332
+								else -- 334
+									reset_cell(cell) -- 334
+								end -- 331
+							end -- 330
+						end -- 330
+					end -- 334
+				end -- 334
+				set_text(18, 4, "+" .. tostring(tostring(added_score))) -- 335
+				table.shuffle(solid_cells) -- 336
+				main:timer_after(0.5, (function() -- 337
+					round_end:sound_play(0.75, main:random_float(0.95, 1.05)) -- 338
+					deep_wobble:sound_play(0.75, main:random_float(0.95, 1.05)) -- 339
+					for i, solid_cell in ipairs(solid_cells) do -- 340
+						hitfx_cell(solid_cell, 0.0, nil, nil, 0.15) -- 341
+						main:timer_after(0.1, (function() -- 342
+							local score = get_solid_neighbor_count(solid_cell.i, solid_cell.j) -- 343
+							solid_cell.solid_word_cell = tostring(score) -- 344
+						end)) -- 342
 					end -- 345
-				end)) -- 336
-				return main:timer_after(4 + 0.05 * #solid_cells, (function() -- 347
-					reset_grid() -- 348
-					return generate_arena() -- 349
-				end)) -- 350
-			end -- 303
-		end), 'new_shape') -- 300
-	end -- 288
-	if main:input_is_pressed('1') and game_over then -- 354
-		reset_grid() -- 355
-		player_score = 0 -- 357
-		player_counter = 0 -- 358
-		round_started = false -- 359
-		game_over = false -- 360
-		main.bottom_counter_state = nil -- 361
-		bottom_counter_grayed = false -- 362
-		generate_arena() -- 363
-	end -- 354
-	bg:rectangle(0.5 * main.w, 0.5 * main.h, main.w, main.h, 0, 0, colors.fg[0]) -- 366
-	bg2:set_blend_mode('replace') -- 367
-	for i = 2, main_grid.w do -- 368
-		for j = 2, main_grid.h do -- 369
-			x, y = (i - 1) * cell_w, (j - 1) * cell_h -- 370
-			local w, h = 5, 5 -- 371
-			bg2:line(x - w / 2, y, x + w / 2, y, grid_marker_color, 1) -- 372
-			bg2:line(x, y - h / 2, x, y + h / 2, grid_marker_color, 1) -- 373
-		end -- 373
-	end -- 373
-	bg2:set_blend_mode() -- 374
-	main_grid:grid_for_each((function(v, i, j) -- 377
-		return v:update(dt) -- 377
-	end)) -- 377
-	objects:container_update(dt) -- 378
-	return objects:container_remove_dead() -- 379
-end -- 228
-get_next_pointer_shape = function() -- 382
-	pointer_shape_rotation = 1 -- 383
-	return main:random_table({ -- 384
-		'short_t', -- 384
-		'long_t', -- 384
-		'short_i', -- 384
-		'long_i', -- 384
-		'short_j', -- 384
-		'long_j', -- 384
-		'short_l', -- 384
-		'long_l', -- 384
-		'short_s', -- 384
-		'long_s', -- 384
-		'short_z', -- 384
-		'long_z', -- 384
-		'short_v', -- 384
-		'long_v', -- 384
-		'o', -- 384
-		'x', -- 384
-		'f', -- 384
-		'p', -- 384
-		'u', -- 384
-		'y', -- 384
-		'z' -- 384
-	}) -- 384
-end -- 382
-set_text = function(x, y, text) -- 388
-	for i = 1, utf8.len(text) do -- 389
-		do -- 390
-			local cell = main_grid:grid_get(x + i, y) -- 390
-			if cell then -- 390
-				cell.word_cell = utf8.sub(text, i, i) -- 391
-			end -- 390
-		end -- 390
-	end -- 391
-end -- 388
-reset_grid = function() -- 394
-	for x = 2, main_grid.w do -- 395
-		for y = 2, main_grid.h do -- 396
-			do -- 397
-				local cell = main_grid:grid_get(x, y) -- 397
-				if cell then -- 397
-					reset_cell(cell) -- 398
-				end -- 397
-			end -- 397
-		end -- 398
-	end -- 398
-end -- 394
-set_bottom_counter = function(value) -- 402
-	for i = 1, main_grid.w do -- 403
-		local cell = main_grid:grid_get(i, main_grid.h) -- 404
-		cell.counter_cell = nil -- 405
+				end)) -- 337
+				local pitch = 0.75 -- 347
+				main:timer_after(3, (function() -- 348
+					for i, solid_cell in ipairs(solid_cells) do -- 349
+						main:timer_after((i - 1) * 0.05, (function() -- 350
+							local score = get_solid_neighbor_count(solid_cell.i, solid_cell.j) -- 351
+							pitch = pitch + (i * (score / 200)) -- 352
+							score_count_tile:sound_play(0.8, pitch) -- 353
+							solid_cell.solid_word_cell = '0' -- 354
+							player_score = player_score + score -- 355
+							return set_top_text("SCORE: " .. tostring(player_score)) -- 356
+						end)) -- 350
+					end -- 357
+				end)) -- 348
+				return main:timer_after(4 + 0.05 * #solid_cells, (function() -- 359
+					level = level + 1 -- 360
+					reset_grid() -- 361
+					return generate_arena() -- 362
+				end)) -- 363
+			end -- 315
+		end), 'new_shape') -- 312
+	end -- 300
+	if main:input_is_pressed('1') and game_over then -- 367
+		reset_grid() -- 368
+		player_score = 0 -- 370
+		player_counter = 0 -- 371
+		level = 1 -- 372
+		round_started = false -- 373
+		game_over = false -- 374
+		main.bottom_counter_state = nil -- 375
+		bottom_counter_grayed = false -- 376
+		generate_arena() -- 377
+	end -- 367
+	bg:rectangle(0.5 * main.w, 0.5 * main.h, main.w, main.h, 0, 0, colors.fg[0]) -- 380
+	bg2:set_blend_mode('replace') -- 381
+	for i = 2, main_grid.w do -- 382
+		for j = 2, main_grid.h do -- 383
+			x, y = (i - 1) * cell_w, (j - 1) * cell_h -- 384
+			local w, h = 5, 5 -- 385
+			bg2:line(x - w / 2, y, x + w / 2, y, grid_marker_color, 1) -- 386
+			bg2:line(x, y - h / 2, x, y + h / 2, grid_marker_color, 1) -- 387
+		end -- 387
+	end -- 387
+	bg2:set_blend_mode() -- 388
+	main_grid:grid_for_each((function(v, i, j) -- 391
+		return v:update(dt) -- 391
+	end)) -- 391
+	objects:container_update(dt) -- 392
+	return objects:container_remove_dead() -- 393
+end -- 241
+get_next_pointer_shape = function() -- 396
+	pointer_shape_rotation = 1 -- 397
+	return main:random_table({ -- 398
+		'short_t', -- 398
+		'long_t', -- 398
+		'short_i', -- 398
+		'long_i', -- 398
+		'short_j', -- 398
+		'long_j', -- 398
+		'short_l', -- 398
+		'long_l', -- 398
+		'short_s', -- 398
+		'long_s', -- 398
+		'short_z', -- 398
+		'long_z', -- 398
+		'short_v', -- 398
+		'long_v', -- 398
+		'o', -- 398
+		'x', -- 398
+		'f', -- 398
+		'p', -- 398
+		'u', -- 398
+		'y', -- 398
+		'z' -- 398
+	}) -- 398
+end -- 396
+set_text = function(x, y, text) -- 402
+	for i = 1, utf8.len(text) do -- 403
+		do -- 404
+			local cell = main_grid:grid_get(x + i, y) -- 404
+			if cell then -- 404
+				cell.word_cell = utf8.sub(text, i, i) -- 405
+			end -- 404
+		end -- 404
 	end -- 405
-	for i = 1, math.floor(value) do -- 406
-		do -- 407
-			local cell = main_grid:grid_get(i, main_grid.h) -- 407
-			if cell then -- 407
-				if i <= 16 then -- 408
-					cell.counter_cell = 'normal' -- 409
-				elseif i > 16 and i <= 20 then -- 410
-					cell.counter_cell = 'warning' -- 411
-				elseif i > 20 and i <= 25 then -- 412
-					cell.counter_cell = 'danger' -- 413
-				end -- 408
-			end -- 407
-		end -- 407
-	end -- 413
 end -- 402
-set_top_text = function(text) -- 416
-	for i = 1, main_grid.w do -- 417
-		local cell = main_grid:grid_get(i, 1) -- 418
-		cell.word_cell = '' -- 419
-	end -- 419
-	for i = 1, utf8.len(text) do -- 420
-		local cell = main_grid:grid_get(i, 1) -- 421
-		cell.word_cell = utf8.sub(text, i, i) -- 422
-	end -- 422
-end -- 416
-generate_arena = function() -- 426
-	main:timer_every(0.4, (function() -- 427
-		local i = main:timer_get_every_index('set_top_text') -- 428
-		if i % 4 == 1 then -- 429
-			return set_top_text('GENERATING') -- 430
-		elseif i % 4 == 2 then -- 431
-			return set_top_text('GENERATING.') -- 432
-		elseif i % 4 == 3 then -- 433
-			return set_top_text('GENERATING..') -- 434
-		elseif i % 4 == 0 then -- 435
-			return set_top_text('GENERATING...') -- 436
-		end -- 429
-	end), nil, true, nil, 'set_top_text') -- 427
-	spawning = true -- 439
-	pointer_shape, pointer_shape_rotation = nil, 1 -- 440
-	round_started = false -- 441
-	local spawn_count = 10 -- 442
-	return main:timer_every(0.1, (function() -- 443
-		if main:random_bool(50) then -- 444
-			objects:container_add(generation_collider(main.w / 2 + main:random_float(-8, 8), main.h / 2 + main:random_float(-8, 8), main:random_float(8, 20))) -- 445
-		else -- 447
-			objects:container_add(generation_collider(main.w / 2 + main:random_float(-8, 8), main.h / 2 + main:random_float(-8, 8), main:random_float(16, 40), main:random_float(16, 40))) -- 447
-		end -- 444
-		generation_shape_spawn:sound_play(0.75, main:random_float(0.7, 1.3)) -- 448
-		return rotate:sound_play(0.75, main:random_float(0.7, 1.3)) -- 449
-	end), spawn_count, true, (function() -- 450
-		return main:timer_after(spawn_count / 15, (function() -- 451
-			objects:container_destroy() -- 452
-			bottom_counter_grayed = false -- 453
-			main.bottom_counter_state = 'normal' -- 454
-			round_started = true -- 455
-			pointer_shape = get_next_pointer_shape() -- 456
-			pointer_shape_rotation = 1 -- 457
-			main:timer_cancel('set_top_text') -- 458
-			set_top_text("SCORE: " .. tostring(player_score)) -- 459
-			return generation_over:sound_play(0.75, main:random_float(0.95, 1.05)) -- 460
-		end)) -- 461
-	end)) -- 462
-end -- 426
-get_solid_cell_count = function() -- 465
-	local count = 0 -- 466
-	for x = 2, main_grid.w - 1 do -- 467
-		for y = 2, main_grid.h - 1 do -- 468
-			do -- 469
-				local cell = main_grid:grid_get(x, y) -- 469
-				if cell then -- 469
-					if cell.solid_cell then -- 470
-						count = count + 1 -- 471
-					end -- 470
-				end -- 469
-			end -- 469
-		end -- 471
-	end -- 471
-	return count -- 472
-end -- 465
-get_solid_cell_score = function() -- 475
-	local count = 0 -- 476
-	for x = 2, main_grid.w - 1 do -- 477
-		for y = 2, main_grid.h - 1 do -- 478
-			do -- 479
-				local cell = main_grid:grid_get(x, y) -- 479
-				if cell then -- 479
-					if cell.solid_cell then -- 480
-						count = count + get_solid_neighbor_count(x, y) -- 481
-					end -- 480
-				end -- 479
-			end -- 479
-		end -- 481
-	end -- 481
-	return count -- 482
-end -- 475
-get_solid_neighbor_count = function(x, y) -- 485
-	local count = 0 -- 486
-	do -- 487
-		local cell = main_grid:grid_get(x, y) -- 487
-		if cell then -- 487
-			local left, right, up, down = main_grid:grid_get(x - 1, y), main_grid:grid_get(x + 1, y), main_grid:grid_get(x, y - 1), main_grid:grid_get(x, y + 1) -- 488
-			if (function() -- 489
-				if left ~= nil then -- 489
-					return left.solid_cell -- 489
-				end -- 489
-				return nil -- 489
-			end)() then -- 489
-				count = count + 1 -- 489
-			end -- 489
-			if (function() -- 490
-				if right ~= nil then -- 490
-					return right.solid_cell -- 490
-				end -- 490
-				return nil -- 490
-			end)() then -- 490
-				count = count + 1 -- 490
-			end -- 490
-			if (function() -- 491
-				if up ~= nil then -- 491
-					return up.solid_cell -- 491
+reset_grid = function() -- 408
+	for x = 2, main_grid.w do -- 409
+		for y = 2, main_grid.h do -- 410
+			do -- 411
+				local cell = main_grid:grid_get(x, y) -- 411
+				if cell then -- 411
+					reset_cell(cell) -- 412
+				end -- 411
+			end -- 411
+		end -- 412
+	end -- 412
+end -- 408
+reset_line = function(x, y) -- 415
+	for i = x, main_grid.w do -- 416
+		do -- 417
+			local cell = main_grid:grid_get(i, y) -- 417
+			if cell then -- 417
+				reset_cell(cell) -- 418
+			end -- 417
+		end -- 417
+	end -- 418
+end -- 415
+set_bottom_counter = function(value) -- 422
+	for i = 1, main_grid.w do -- 423
+		local cell = main_grid:grid_get(i, main_grid.h) -- 424
+		cell.counter_cell = nil -- 425
+	end -- 425
+	for i = 1, math.floor(value) do -- 426
+		do -- 427
+			local cell = main_grid:grid_get(i, main_grid.h) -- 427
+			if cell then -- 427
+				if i <= 16 then -- 428
+					cell.counter_cell = 'normal' -- 429
+				elseif i > 16 and i <= 20 then -- 430
+					cell.counter_cell = 'warning' -- 431
+				elseif i > 20 and i <= 25 then -- 432
+					cell.counter_cell = 'danger' -- 433
+				end -- 428
+			end -- 427
+		end -- 427
+	end -- 433
+end -- 422
+set_top_text = function(text) -- 436
+	for i = 1, main_grid.w do -- 437
+		local cell = main_grid:grid_get(i, 1) -- 438
+		cell.word_cell = '' -- 439
+	end -- 439
+	for i = 1, utf8.len(text) do -- 440
+		local cell = main_grid:grid_get(i, 1) -- 441
+		cell.word_cell = utf8.sub(text, i, i) -- 442
+	end -- 442
+end -- 436
+generate_arena = function() -- 446
+	set_text(2, 4, "Lv." .. tostring(tostring(level))) -- 447
+	main:timer_every(0.4, (function() -- 449
+		local i = main:timer_get_every_index('set_top_text') -- 450
+		if i % 4 == 1 then -- 451
+			return set_top_text('GENERATING') -- 452
+		elseif i % 4 == 2 then -- 453
+			return set_top_text('GENERATING.') -- 454
+		elseif i % 4 == 3 then -- 455
+			return set_top_text('GENERATING..') -- 456
+		elseif i % 4 == 0 then -- 457
+			return set_top_text('GENERATING...') -- 458
+		end -- 451
+	end), nil, true, nil, 'set_top_text') -- 449
+	spawning = true -- 461
+	pointer_shape, pointer_shape_rotation = nil, 1 -- 462
+	round_started = false -- 463
+	local spawn_count = level_to_generation_colliders_spawned[level] -- 464
+	return main:timer_every(0.1, (function() -- 465
+		if main:random_bool(50) then -- 466
+			objects:container_add(generation_collider(main.w / 2 + main:random_float(-8, 8), main.h / 2 + main:random_float(-8, 8), main:random_float(8, 20))) -- 467
+		else -- 469
+			objects:container_add(generation_collider(main.w / 2 + main:random_float(-8, 8), main.h / 2 + main:random_float(-8, 8), main:random_float(16, 40), main:random_float(16, 40))) -- 469
+		end -- 466
+		generation_shape_spawn:sound_play(0.75, main:random_float(0.7, 1.3)) -- 470
+		return rotate:sound_play(0.75, main:random_float(0.7, 1.3)) -- 471
+	end), spawn_count, true, (function() -- 472
+		return main:timer_after(spawn_count / 15, (function() -- 473
+			objects:container_destroy() -- 474
+			bottom_counter_grayed = false -- 475
+			main.bottom_counter_state = 'normal' -- 476
+			round_started = true -- 477
+			pointer_shape = get_next_pointer_shape() -- 478
+			pointer_shape_rotation = 1 -- 479
+			main:timer_cancel('set_top_text') -- 480
+			set_top_text("SCORE: " .. tostring(player_score)) -- 481
+			return generation_over:sound_play(0.75, main:random_float(0.95, 1.05)) -- 482
+		end)) -- 483
+	end)) -- 484
+end -- 446
+get_solid_cell_count = function() -- 487
+	local count = 0 -- 488
+	for x = 2, main_grid.w - 1 do -- 489
+		for y = 2, main_grid.h - 1 do -- 490
+			do -- 491
+				local cell = main_grid:grid_get(x, y) -- 491
+				if cell then -- 491
+					if cell.solid_cell then -- 492
+						count = count + 1 -- 493
+					end -- 492
 				end -- 491
-				return nil -- 491
-			end)() then -- 491
-				count = count + 1 -- 491
 			end -- 491
-			if (function() -- 492
-				if down ~= nil then -- 492
-					return down.solid_cell -- 492
-				end -- 492
-				return nil -- 492
-			end)() then -- 492
-				count = count + 1 -- 492
-			end -- 492
-			return count -- 493
-		end -- 487
-	end -- 487
-	return 0 -- 494
-end -- 485
-does_shape_fit = function(x, y, shape) -- 498
-	for _index_0 = 1, #shape do -- 499
-		local offset = shape[_index_0] -- 499
-		do -- 500
-			local cell = main_grid:grid_get(x + offset[1], y + offset[2]) -- 500
-			if cell then -- 500
-				if cell.interactable_cell then -- 501
-					if cell.solid_cell or not cell.arena_cell then -- 502
-						return false -- 503
+		end -- 493
+	end -- 493
+	return count -- 494
+end -- 487
+get_solid_cell_score = function() -- 497
+	local count = 0 -- 498
+	for x = 2, main_grid.w - 1 do -- 499
+		for y = 2, main_grid.h - 1 do -- 500
+			do -- 501
+				local cell = main_grid:grid_get(x, y) -- 501
+				if cell then -- 501
+					if cell.solid_cell then -- 502
+						count = count + get_solid_neighbor_count(x, y) -- 503
 					end -- 502
-				else -- 505
-					return false -- 505
 				end -- 501
-			else -- 507
-				return false -- 507
-			end -- 500
-		end -- 500
-	end -- 507
-	return true -- 508
-end -- 498
-does_shape_fit_arena = function(shape_rotations) -- 513
-	for x = 2, main_grid.w - 1 do -- 514
-		for y = 2, main_grid.h - 1 do -- 515
-			do -- 516
-				local cell = main_grid:grid_get(x, y) -- 516
-				if cell then -- 516
-					if cell.arena_cell then -- 517
-						for _index_0 = 1, #shape_rotations do -- 518
-							local rotated_shape = shape_rotations[_index_0] -- 518
-							if does_shape_fit(x, y, rotated_shape) then -- 519
-								return true -- 520
-							end -- 519
-						end -- 520
-					end -- 517
-				end -- 516
-			end -- 516
-		end -- 520
-	end -- 520
-end -- 513
-cell = function(i, j) -- 523
-	local self = anchor('cell') -- 524
-	self:prs_init((i - 1) * cell_w + 0.5 * cell_w, (j - 1) * cell_h + 0.5 * cell_h) -- 525
-	self:collider_init('cell', 'static', 'rectangle', cell_w, cell_h) -- 526
-	self:hitfx_init() -- 527
-	self:shake_init() -- 528
-	self.i, self.j = i, j -- 529
-	self.interactable_cell = self.i >= 2 and self.j >= 2 and self.i <= main_grid.w - 1 and self.j <= main_grid.h - 1 -- 530
-	self.arena_cell = false -- 531
-	self.pointer_cell_ok = false -- 532
-	self.pointer_cell_not_ok = false -- 533
-	self.solid_cell = false -- 534
-	self.word_cell = false -- 535
-	self.counter_cell = false -- 536
-	self.update = function(self, dt) -- 538
-		if self.trigger_active['generation_collider'] and self.interactable_cell then -- 539
-			self.arena_cell = true -- 539
-		end -- 539
-		game:push(self.x, self.y, 0, self.springs.main.x, self.springs.main.x) -- 540
-		if self.counter_cell then -- 541
-			if not bottom_counter_hidden then -- 542
-				do -- 543
-					local _exp_0 = self.counter_cell -- 543
-					if 'normal' == _exp_0 then -- 544
-						game:rectangle(self.x, self.y, self.w, self.h, 0, 0, bottom_counter_grayed and bottom_counter_color or colors.yellow[0]) -- 545
-					elseif 'warning' == _exp_0 then -- 546
-						game:rectangle(self.x, self.y, self.w, self.h, 0, 0, bottom_counter_grayed and bottom_counter_color or colors.orange[0]) -- 547
-					elseif 'danger' == _exp_0 then -- 548
-						game:rectangle(self.x, self.y, self.w, self.h, 0, 0, bottom_counter_grayed and bottom_counter_color or colors.red[0]) -- 549
-					end -- 549
-				end -- 549
-			end -- 542
-		elseif self.word_cell then -- 550
-			game:rectangle(self.x, self.y, self.w, self.h, 0, 0, colors.bg[2]) -- 551
-			if type(self.word_cell) == 'string' then -- 552
-				game:draw_text_centered(self.word_cell, font, self.x, self.y, 0, 1, 1, 0, 0, colors.fg[0]) -- 552
-			end -- 552
-		elseif self.solid_word_cell then -- 553
-			game:rectangle(self.x, self.y, self.w, self.h, 0, 0, colors.bg[2]) -- 554
-			if type(self.solid_word_cell) == 'string' then -- 555
-				game:draw_text_centered(self.solid_word_cell, font, self.x, self.y, 0, 1, 1, 0, 0, colors.fg[0]) -- 555
-			end -- 555
-		elseif self.solid_cell then -- 556
-			game:rectangle(self.x, self.y, self.w, self.h, 0, 0, self.flashes.main.x and colors.fg[5] or colors.bg[2]) -- 557
-			if self.pointer_cell_not_ok and not self.flashes.main.x then -- 558
-				game:rectangle(self.x + self.shake_amount.x, self.y + self.shake_amount.y, self.w, self.h, 0, 0, grid_pointer_not_ok_color) -- 559
-				game:rectangle(self.x + self.shake_amount.x, self.y + self.shake_amount.y, self.w, self.h, 4, 4, grid_pointer_not_ok_outline_color, 2) -- 560
-			end -- 558
-		elseif self.pointer_cell_ok then -- 561
-			game:rectangle(self.x, self.y, self.w, self.h, 0, 0, grid_pointer_ok_color) -- 562
-			game:rectangle(self.x, self.y, self.w, self.h, 4, 4, grid_pointer_ok_outline_color, 2) -- 563
-		elseif self.pointer_cell_not_ok then -- 564
-			game:rectangle(self.x + self.shake_amount.x, self.y + self.shake_amount.y, self.w, self.h, 0, 0, grid_pointer_not_ok_color) -- 565
-			game:rectangle(self.x + self.shake_amount.x, self.y + self.shake_amount.y, self.w, self.h, 4, 4, grid_pointer_not_ok_outline_color, 2) -- 566
-		elseif self.arena_cell then -- 567
-			game:rectangle(self.x, self.y, self.w, self.h, 0, 0, grid_marker_color) -- 568
-		end -- 541
-		return game:pop() -- 569
-	end -- 538
-	return self -- 570
-end -- 523
-reset_cell = function(self) -- 572
-	self.collision_active['generation_collider'] = nil -- 573
-	self.trigger_active['generation_collider'] = nil -- 574
-	self.arena_cell = false -- 575
-	self.pointer_cell_ok = false -- 576
-	self.pointer_cell_not_ok = false -- 577
-	self.solid_cell = false -- 578
-	self.word_cell = false -- 579
-	self.solid_word_cell = false -- 580
-end -- 572
-score_cell = function(self) -- 582
-	objects:container_add(hit_circle(self.x, self.y, { -- 583
-		colors = { -- 583
-			colors.bg[5] -- 583
-		}, -- 583
-		duration = 0.4, -- 583
-		rs = 14 -- 583
-	})) -- 583
-	for i = 1, main:random_int(3, 4) do -- 584
-		objects:container_add(hit_particle(self.x, self.y, { -- 584
-			angular_v = main:random_float(-math.pi, math.pi), -- 584
-			colors = { -- 584
-				main:random_bool(50) and colors.bg[5] or colors.fg[5] -- 584
-			}, -- 584
-			duration = main:random_float(0.4, 1), -- 584
-			v = main:random_float(100, 300) -- 584
-		})) -- 584
-	end -- 584
-end -- 582
-hitfx_cell = function(self, s, f) -- 586
-	return self:hitfx_use('main', s or 0.25, nil, nil, f or 0.15) -- 587
-end -- 586
-generation_collider = function(x, y, w, h) -- 590
-	local self = anchor('generation_collider') -- 591
-	self:prs_init(x, y) -- 592
-	if w and h then -- 593
-		self:collider_init('generation_collider', 'dynamic', 'rectangle', w, h) -- 594
-	else -- 596
-		self:collider_init('generation_collider', 'dynamic', 'circle', w) -- 596
-	end -- 593
-	self.update = function(self, dt) -- 598
-		self:collider_update_position_and_angle() -- 599
-		if self.shape_type == 'circle' then -- 600
-			return game:circle(self.x, self.y, self.rs, grid_marker_color, 2) -- 601
-		else -- 603
-			return game:polygon(self:collider_get_vertices(), grid_marker_color, 2) -- 603
-		end -- 600
-	end -- 598
-	return self -- 604
-end -- 590
+			end -- 501
+		end -- 503
+	end -- 503
+	return count -- 504
+end -- 497
+get_solid_neighbor_count = function(x, y) -- 507
+	local count = 0 -- 508
+	do -- 509
+		local cell = main_grid:grid_get(x, y) -- 509
+		if cell then -- 509
+			local left, right, up, down = main_grid:grid_get(x - 1, y), main_grid:grid_get(x + 1, y), main_grid:grid_get(x, y - 1), main_grid:grid_get(x, y + 1) -- 510
+			if (function() -- 511
+				if left ~= nil then -- 511
+					return left.solid_cell -- 511
+				end -- 511
+				return nil -- 511
+			end)() then -- 511
+				count = count + 1 -- 511
+			end -- 511
+			if (function() -- 512
+				if right ~= nil then -- 512
+					return right.solid_cell -- 512
+				end -- 512
+				return nil -- 512
+			end)() then -- 512
+				count = count + 1 -- 512
+			end -- 512
+			if (function() -- 513
+				if up ~= nil then -- 513
+					return up.solid_cell -- 513
+				end -- 513
+				return nil -- 513
+			end)() then -- 513
+				count = count + 1 -- 513
+			end -- 513
+			if (function() -- 514
+				if down ~= nil then -- 514
+					return down.solid_cell -- 514
+				end -- 514
+				return nil -- 514
+			end)() then -- 514
+				count = count + 1 -- 514
+			end -- 514
+			return count -- 515
+		end -- 509
+	end -- 509
+	return 0 -- 516
+end -- 507
+does_shape_fit = function(x, y, shape) -- 520
+	for _index_0 = 1, #shape do -- 521
+		local offset = shape[_index_0] -- 521
+		do -- 522
+			local cell = main_grid:grid_get(x + offset[1], y + offset[2]) -- 522
+			if cell then -- 522
+				if cell.interactable_cell then -- 523
+					if cell.solid_cell or not cell.arena_cell then -- 524
+						return false -- 525
+					end -- 524
+				else -- 527
+					return false -- 527
+				end -- 523
+			else -- 529
+				return false -- 529
+			end -- 522
+		end -- 522
+	end -- 529
+	return true -- 530
+end -- 520
+does_shape_fit_arena = function(shape_rotations) -- 535
+	for x = 2, main_grid.w - 1 do -- 536
+		for y = 2, main_grid.h - 1 do -- 537
+			do -- 538
+				local cell = main_grid:grid_get(x, y) -- 538
+				if cell then -- 538
+					if cell.arena_cell then -- 539
+						for _index_0 = 1, #shape_rotations do -- 540
+							local rotated_shape = shape_rotations[_index_0] -- 540
+							if does_shape_fit(x, y, rotated_shape) then -- 541
+								return true -- 542
+							end -- 541
+						end -- 542
+					end -- 539
+				end -- 538
+			end -- 538
+		end -- 542
+	end -- 542
+end -- 535
+cell = function(i, j) -- 545
+	local self = anchor('cell') -- 546
+	self:prs_init((i - 1) * cell_w + 0.5 * cell_w, (j - 1) * cell_h + 0.5 * cell_h) -- 547
+	self:collider_init('cell', 'static', 'rectangle', cell_w, cell_h) -- 548
+	self:hitfx_init() -- 549
+	self:shake_init() -- 550
+	self.i, self.j = i, j -- 551
+	self.interactable_cell = self.i >= 2 and self.j >= 2 and self.i <= main_grid.w - 1 and self.j <= main_grid.h - 1 -- 552
+	self.arena_cell = false -- 553
+	self.pointer_cell_ok = false -- 554
+	self.pointer_cell_not_ok = false -- 555
+	self.solid_cell = false -- 556
+	self.word_cell = false -- 557
+	self.counter_cell = false -- 558
+	self.update = function(self, dt) -- 560
+		if self.trigger_active['generation_collider'] and self.interactable_cell then -- 561
+			self.arena_cell = true -- 561
+		end -- 561
+		game:push(self.x, self.y, 0, self.springs.main.x, self.springs.main.x) -- 562
+		if self.counter_cell then -- 563
+			if not bottom_counter_hidden then -- 564
+				do -- 565
+					local _exp_0 = self.counter_cell -- 565
+					if 'normal' == _exp_0 then -- 566
+						game:rectangle(self.x, self.y, self.w, self.h, 0, 0, bottom_counter_grayed and bottom_counter_color or colors.yellow[0]) -- 567
+					elseif 'warning' == _exp_0 then -- 568
+						game:rectangle(self.x, self.y, self.w, self.h, 0, 0, bottom_counter_grayed and bottom_counter_color or colors.orange[0]) -- 569
+					elseif 'danger' == _exp_0 then -- 570
+						game:rectangle(self.x, self.y, self.w, self.h, 0, 0, bottom_counter_grayed and bottom_counter_color or colors.red[0]) -- 571
+					end -- 571
+				end -- 571
+			end -- 564
+		elseif self.word_cell then -- 572
+			game:rectangle(self.x, self.y, self.w, self.h, 0, 0, colors.bg[2]) -- 573
+			if type(self.word_cell) == 'string' then -- 574
+				game:draw_text_centered(self.word_cell, font, self.x, self.y, 0, 1, 1, 0, 0, colors.fg[0]) -- 574
+			end -- 574
+		elseif self.solid_word_cell then -- 575
+			game:rectangle(self.x, self.y, self.w, self.h, 0, 0, colors.bg[2]) -- 576
+			if type(self.solid_word_cell) == 'string' then -- 577
+				game:draw_text_centered(self.solid_word_cell, font, self.x, self.y, 0, 1, 1, 0, 0, colors.fg[0]) -- 577
+			end -- 577
+		elseif self.solid_cell then -- 578
+			game:rectangle(self.x, self.y, self.w, self.h, 0, 0, self.flashes.main.x and colors.fg[5] or colors.bg[2]) -- 579
+			if self.pointer_cell_not_ok and not self.flashes.main.x then -- 580
+				game:rectangle(self.x + self.shake_amount.x, self.y + self.shake_amount.y, self.w, self.h, 0, 0, grid_pointer_not_ok_color) -- 581
+				game:rectangle(self.x + self.shake_amount.x, self.y + self.shake_amount.y, self.w, self.h, 4, 4, grid_pointer_not_ok_outline_color, 2) -- 582
+			end -- 580
+		elseif self.pointer_cell_ok then -- 583
+			game:rectangle(self.x, self.y, self.w, self.h, 0, 0, grid_pointer_ok_color) -- 584
+			game:rectangle(self.x, self.y, self.w, self.h, 4, 4, grid_pointer_ok_outline_color, 2) -- 585
+		elseif self.pointer_cell_not_ok then -- 586
+			game:rectangle(self.x + self.shake_amount.x, self.y + self.shake_amount.y, self.w, self.h, 0, 0, grid_pointer_not_ok_color) -- 587
+			game:rectangle(self.x + self.shake_amount.x, self.y + self.shake_amount.y, self.w, self.h, 4, 4, grid_pointer_not_ok_outline_color, 2) -- 588
+		elseif self.arena_cell then -- 589
+			game:rectangle(self.x, self.y, self.w, self.h, 0, 0, grid_marker_color) -- 590
+		end -- 563
+		return game:pop() -- 591
+	end -- 560
+	return self -- 592
+end -- 545
+reset_cell = function(self) -- 594
+	self.collision_active['generation_collider'] = nil -- 595
+	self.trigger_active['generation_collider'] = nil -- 596
+	self.arena_cell = false -- 597
+	self.pointer_cell_ok = false -- 598
+	self.pointer_cell_not_ok = false -- 599
+	self.solid_cell = false -- 600
+	self.word_cell = false -- 601
+	self.solid_word_cell = false -- 602
+end -- 594
+score_cell = function(self) -- 604
+	objects:container_add(hit_circle(self.x, self.y, { -- 605
+		colors = { -- 605
+			colors.bg[5] -- 605
+		}, -- 605
+		duration = 0.4, -- 605
+		rs = 14 -- 605
+	})) -- 605
+	for i = 1, main:random_int(3, 4) do -- 606
+		objects:container_add(hit_particle(self.x, self.y, { -- 606
+			angular_v = main:random_float(-math.pi, math.pi), -- 606
+			colors = { -- 606
+				main:random_bool(50) and colors.bg[5] or colors.fg[5] -- 606
+			}, -- 606
+			duration = main:random_float(0.4, 1), -- 606
+			v = main:random_float(100, 300) -- 606
+		})) -- 606
+	end -- 606
+end -- 604
+hitfx_cell = function(self, s, f) -- 608
+	return self:hitfx_use('main', s or 0.25, nil, nil, f or 0.15) -- 609
+end -- 608
+generation_collider = function(x, y, w, h) -- 612
+	local self = anchor('generation_collider') -- 613
+	self:prs_init(x, y) -- 614
+	if w and h then -- 615
+		self:collider_init('generation_collider', 'dynamic', 'rectangle', w, h) -- 616
+	else -- 618
+		self:collider_init('generation_collider', 'dynamic', 'circle', w) -- 618
+	end -- 615
+	self.update = function(self, dt) -- 620
+		self:collider_update_position_and_angle() -- 621
+		if self.shape_type == 'circle' then -- 622
+			return game:circle(self.x, self.y, self.rs, grid_marker_color, 2) -- 623
+		else -- 625
+			return game:polygon(self:collider_get_vertices(), grid_marker_color, 2) -- 625
+		end -- 622
+	end -- 620
+	return self -- 626
+end -- 612

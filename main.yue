@@ -178,6 +178,15 @@ init = ->
   bottom_counter_grayed = false
   bottom_counter_hidden = false
   main.bottom_counter_state = nil -- can be 'normal', 'warning' and 'danger'
+  level = 1
+  level_to_player_counter_speed = {0.5, 0.55, 0.7, 0.6, 0.66, 0.84, 0.5, 0.7, 1.00, 0.12, 0.58, 1.20}
+  level_to_generation_colliders_spawned = {10, 12, 18, 14, 10, 22, 16, 18, 32, 40, 40, 40}
+  for i = 13, 100, 3
+    level_to_player_counter_speed[i] = level_to_player_counter_speed[i-1]*0.5
+    level_to_player_counter_speed[i+1] = level_to_player_counter_speed[i-1]*0.7
+    level_to_player_counter_speed[i+2] = level_to_player_counter_speed[i-1]*1.4
+  for i = 13, 100
+    level_to_generation_colliders_spawned[i] = main\random_int 16, 40
 
   -- End game
   main\observer_condition (-> player_counter >= 25), (->
@@ -186,6 +195,7 @@ init = ->
     death\sound_play 0.75, main\random_float(0.95, 1.05)
     main\timer_cancel 'warning'
     game_over = true
+    level = 1
     round_started = false
     bottom_counter_hidden = false
     bottom_counter_grayed = true
@@ -200,7 +210,10 @@ init = ->
   main\observer_condition (-> player_counter >= 16), (-> main.bottom_counter_state = 'warning')
   main\observer_condition (-> player_counter >= 20), (-> main.bottom_counter_state = 'danger')
 
-  main\observer_value 'bottom_counter_state', 'normal', (-> main\timer_cancel 'warning')
+  main\observer_value 'bottom_counter_state', 'normal', (-> 
+    main\timer_cancel 'warning'
+    bottom_counter_hidden = false
+  )
   main\observer_value 'bottom_counter_state', 'warning', (->
     main\timer_every 0.8, (->
       bottom_counter_hidden = not bottom_counter_hidden
@@ -242,7 +255,7 @@ update = (dt) ->
 
   -- Update bottom counter
   if round_started
-    global player_counter = player_counter + 0.75*dt
+    global player_counter = player_counter + level_to_player_counter_speed[level]*dt
   set_bottom_counter player_counter
 
   if main.bottom_counter_state == 'warning' or main.bottom_counter_state == 'danger'
@@ -305,7 +318,7 @@ update = (dt) ->
         global round_started = false
         global player_score = player_score
         global player_counter = player_counter
-        main\timer_tween 0.64, _G, {player_counter: player_counter - added_score/10}, math.cubic_in_out, (->
+        main\timer_tween 0.64, _G, {player_counter: player_counter - added_score/12}, math.cubic_in_out, (->
           player_counter = 0 if player_counter < 0
           main.bottom_counter_state = 'normal' if player_counter < 16
           main.bottom_counter_state = 'warning' if player_counter >= 16 and player_counter < 20
@@ -319,6 +332,7 @@ update = (dt) ->
                 solid_cells[] = cell
               else
                 reset_cell cell
+        set_text 18, 4, "+#{tostring(added_score)}"
         table.shuffle solid_cells
         main\timer_after 0.5, (->
           round_end\sound_play 0.75, main\random_float(0.95, 1.05)
@@ -343,6 +357,7 @@ update = (dt) ->
             )
         )
         main\timer_after 4 + 0.05*#solid_cells, (->
+          global level = level + 1
           reset_grid!
           generate_arena!
         )
@@ -354,6 +369,7 @@ update = (dt) ->
     global *
     player_score = 0
     player_counter = 0
+    level = 1
     round_started = false
     game_over = false
     main.bottom_counter_state = nil
@@ -381,7 +397,7 @@ get_next_pointer_shape = ->
   global pointer_shape_rotation = 1
   main\random_table{'short_t', 'long_t', 'short_i', 'long_i', 'short_j', 'long_j', 'short_l', 'long_l', 'short_s', 'long_s', 'short_z', 'long_z', 'short_v', 'long_v', 'o', 'x', 'f', 'p', 'u', 'y', 'z'}
 
--- Sets text on any cell, starting from x, y position.
+-- Sets text on any cell, starting from the x, y position.
 -- Reset it with reset_grid later
 set_text = (x, y, text) ->
   for i = 1, utf8.len text
@@ -394,6 +410,12 @@ reset_grid = ->
     for y = 2, main_grid.h
       if cell = main_grid\grid_get x, y
         reset_cell cell
+
+-- Resets cells to the right in a line from the x, y position.
+reset_line = (x, y) ->
+  for i = x, main_grid.w
+    if cell = main_grid\grid_get i, y
+      reset_cell cell
 
 -- Sets counter along the bottom 24 non-interactable cells at y = main_grid.h.
 -- Once the player_counter reaches 25, the game ends and the player loses the game.
@@ -422,6 +444,8 @@ set_top_text = (text) ->
 -- Creates circle and rectangle colliders that spread out and create the arena.
 -- Once they've all stopped moving the round starts proper.
 generate_arena = () ->
+  set_text 2, 4, "Lv.#{tostring(level)}"
+
   main\timer_every 0.4, (->
     i = main\timer_get_every_index 'set_top_text'
     if i % 4 == 1
@@ -437,7 +461,7 @@ generate_arena = () ->
   global spawning = true
   global pointer_shape, pointer_shape_rotation = nil, 1
   global round_started = false
-  spawn_count = 10
+  spawn_count = level_to_generation_colliders_spawned[level]
   main\timer_every 0.1, (->
     if main\random_bool(50)
       objects\container_add generation_collider main.w/2 + main\random_float(-8, 8), main.h/2 + main\random_float(-8, 8), main\random_float(8, 20)
